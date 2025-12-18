@@ -1,0 +1,47 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Glassmorphism effect */
+.glass {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+}
+
+/* Custom color classes for our palette */
+.bg-emerald-900 {
+  background-color: #015F63;
+}
+
+.text-emerald-900 {
+  color: #015F63;
+}
+
+.bg-sky-400 {
+  background-color: #4FC3F7;
+}
+
+.text-sky-400 {
+  color: #4FC3F7;
+}
+
+/* Route transition animations */
+.fade-enter {
+  opacity: 0;
+}
+
+.fade-enter-active {
+  opacity: 1;
+  transition: opacity 300ms ease-in-out;
+}
+
+.fade-exit {
+  opacity: 1;
+}
+
+.fade-exit-active {
+  opacity: 0;
+  transition: opacity 300ms ease-in-out;
+}

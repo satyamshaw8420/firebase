@@ -1,0 +1,30 @@
+# Secrets
+.env
+.env.*
+firebaseConfig.ts
+
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+.vercel/
+
+# Convex generated
+convex/_generated/
+
+# Logs
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS / Editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Cache / temp
+.cache/
+.temp/
