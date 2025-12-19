@@ -39,11 +39,11 @@ const CreateTrip: React.FC = () => {
     endDate: '',
     durationDays: 0,
     budgetType: BudgetType.MODERATE,
-    budgetAmount: 50000,
-    travelerType: TravelerType.COUPLE,
+    budgetAmount: 0,
+    travelerType: TravelerType.SOLO,
     joinStrangerGroup: false,
     groupPreferences: { genderPreference: 'any' },
-    travelers: { adults: 2, children: 0, seniors: 0, infants: 0 },
+    travelers: { adults: 0, children: 0, seniors: 0, infants: 0 },
     transportModes: [],
     hireGuide: false,
     interests: []
@@ -648,9 +648,10 @@ const CreateTrip: React.FC = () => {
                             <span className="absolute left-4 top-4 text-gray-500 font-bold">₹</span>
                             <input 
                                 type="number" 
-                                value={prefs.budgetAmount}
-                                onChange={(e) => setPrefs({...prefs, budgetAmount: parseInt(e.target.value)})}
-                                className={`w-full pl-10 p-4 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#4FC3F7] outline-none font-bold text-gray-800 tracking-wide`}
+                                value={prefs.budgetAmount || ''}
+                                placeholder="Enter your budget"
+                                onChange={(e) => setPrefs({...prefs, budgetAmount: parseInt(e.target.value) || 0})}
+                                className={`w-full pl-10 p-4 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#4FC3F7] outline-none font-bold text-gray-800 tracking-wide placeholder-gray-400`}
                             />
                         </div>
                     </div>
