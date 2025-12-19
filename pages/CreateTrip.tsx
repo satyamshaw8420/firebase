@@ -42,6 +42,7 @@ const CreateTrip: React.FC = () => {
     budgetAmount: 50000,
     travelerType: TravelerType.COUPLE,
     joinStrangerGroup: false,
+    groupPreferences: { genderPreference: 'any' },
     travelers: { adults: 2, children: 0, seniors: 0, infants: 0 },
     transportModes: [],
     hireGuide: false,
@@ -52,7 +53,12 @@ const CreateTrip: React.FC = () => {
   useEffect(() => {
     if (location.state?.editTrip) {
         const trip = location.state.editTrip as SavedTrip;
-        setPrefs(trip.preferences);
+        // Ensure groupPreferences exists for backward compatibility
+        const updatedPreferences = {
+            ...trip.preferences,
+            groupPreferences: trip.preferences.groupPreferences || { genderPreference: 'any' }
+        };
+        setPrefs(updatedPreferences);
         setEditingId(trip.id);
         // Optionally scroll to top
         window.scrollTo(0, 0);
@@ -517,6 +523,52 @@ const CreateTrip: React.FC = () => {
                                             {prefs.joinStrangerGroup ? 'Count me in!' : 'Enable Group Tour'}
                                         </span>
                                     </label>
+                                    
+                                    {/* Gender Preference Selection - Only shown when Strangers United is enabled */}
+                                    {prefs.joinStrangerGroup && (
+                                        <div className="mt-6 pt-4 border-t border-white/20">
+                                            <h4 className="text-sm font-bold mb-3 text-white">Group Preferences</h4>
+                                            <div className="grid grid-cols-3 gap-2">
+                                                <button 
+                                                    onClick={() => setPrefs({
+                                                        ...prefs, 
+                                                        groupPreferences: { 
+                                                            ...prefs.groupPreferences, 
+                                                            genderPreference: 'any' 
+                                                        }
+                                                    })}
+                                                    className={`py-2 px-3 rounded-lg text-sm font-medium transition-all ${prefs.groupPreferences?.genderPreference === 'any' || !prefs.groupPreferences ? 'bg-white text-indigo-600 shadow' : 'bg-white/10 text-white hover:bg-white/20'}`}
+                                                >
+                                                    Everyone
+                                                </button>
+                                                <button 
+                                                    onClick={() => setPrefs({
+                                                        ...prefs, 
+                                                        groupPreferences: { 
+                                                            ...prefs.groupPreferences, 
+                                                            genderPreference: 'female' 
+                                                        }
+                                                    })}
+                                                    className={`py-2 px-3 rounded-lg text-sm font-medium transition-all ${prefs.groupPreferences?.genderPreference === 'female' ? 'bg-white text-indigo-600 shadow' : 'bg-white/10 text-white hover:bg-white/20'}`}
+                                                >
+                                                    Females Only
+                                                </button>
+                                                <button 
+                                                    onClick={() => setPrefs({
+                                                        ...prefs, 
+                                                        groupPreferences: { 
+                                                            ...prefs.groupPreferences, 
+                                                            genderPreference: 'male' 
+                                                        }
+                                                    })}
+                                                    className={`py-2 px-3 rounded-lg text-sm font-medium transition-all ${prefs.groupPreferences?.genderPreference === 'male' ? 'bg-white text-indigo-600 shadow' : 'bg-white/10 text-white hover:bg-white/20'}`}
+                                                >
+                                                    Males Only
+                                                </button>
+                                            </div>
+                                            <p className="text-xs mt-2 text-indigo-100/80">Choose your preferred group composition</p>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </div>

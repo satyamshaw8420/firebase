@@ -27,6 +27,10 @@ export interface TravelerCount {
   infants: number;
 }
 
+export interface GroupPreferences {
+  genderPreference: 'any' | 'female' | 'male';
+}
+
 export interface TripPreferences {
   origin: string;
   destination: string;
@@ -39,6 +43,7 @@ export interface TripPreferences {
   travelers: TravelerCount;
   travelerType: TravelerType; // New field
   joinStrangerGroup: boolean; // New field
+  groupPreferences?: GroupPreferences; // Optional for backward compatibility
   transportModes: TransportMode[];
   hireGuide: boolean;
   interests: string[];

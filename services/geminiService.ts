@@ -31,6 +31,7 @@ export const generateItinerary = async (prefs: TripPreferences): Promise<Itinera
     - Budget Tier: ${prefs.budgetType} (Approx. Budget: ${prefs.budgetAmount} INR)
     - Traveler Type: ${prefs.travelerType}
     - Join "Strangers United" Group Tour: ${prefs.joinStrangerGroup ? 'Yes (Include group activities)' : 'No'}
+    - Group Preferences: ${prefs.groupPreferences ? prefs.groupPreferences.genderPreference.charAt(0).toUpperCase() + prefs.groupPreferences.genderPreference.slice(1) : 'Any'}
     - Travelers: ${prefs.travelers.adults} Adults, ${prefs.travelers.children} Children, ${prefs.travelers.seniors} Seniors, ${prefs.travelers.infants} Infants.
     - Transport Preferences: ${prefs.transportModes.join(', ')}
     - Hire Guide: ${prefs.hireGuide ? 'Yes' : 'No'}
