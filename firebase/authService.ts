@@ -4,11 +4,19 @@ import {
   GoogleAuthProvider, 
   signOut, 
   onAuthStateChanged,
+  setPersistence,
+  browserLocalPersistence,
   User as FirebaseUser
 } from 'firebase/auth';
 
 // Google Auth Provider
 const googleProvider = new GoogleAuthProvider();
+
+// Set persistence to local storage
+setPersistence(auth, browserLocalPersistence)
+  .catch((error) => {
+    console.error('Error setting persistence:', error);
+  });
 
 // Sign in with Google
 export const signInWithGooglePopup = async () => {
