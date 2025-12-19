@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Itinerary, TripPreferences } from '../types';
 import { Wallet, MapPin, CheckCircle, Download, Users, Edit2, Save, X, Trash2, CreditCard, Check, Eye, Share2, Smartphone, Lock, AlertCircle, Phone, Mail, QrCode, Globe, ShieldCheck, Gift, ChevronRight, Copy } from 'lucide-react';
+// @ts-ignore
 import html2pdf from 'html2pdf.js';
-
 interface ItineraryViewProps {
   itinerary: Itinerary;
   preferences?: TripPreferences; // Needed for traveler count
@@ -187,19 +187,15 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
         };
         
         // Generate and download PDF
-        html2pdf()
-          .set(options)
-          .from(element)
-          .save()
-          .then(() => {
-            // Hide loading state
-            setIsDownloading(false);
-          })
-          .catch((error: any) => {
-            console.error('Error generating PDF:', error);
-            setIsDownloading(false);
-            alert('Failed to generate PDF. Please try again.');
-          });
+        // @ts-ignore
+        html2pdf().set(options).from(element).save().then(() => {
+          // Hide loading state
+          setIsDownloading(false);
+        }).catch((error: any) => {
+          console.error('Error generating PDF:', error);
+          setIsDownloading(false);
+          alert('Failed to generate PDF. Please try again.');
+        });
       } else {
         setIsDownloading(false);
         alert('Failed to generate PDF. Content not found.');
@@ -210,7 +206,6 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
       alert('Failed to generate PDF. Please try again.');
     }
   };
-
   // Logic for EMI eligibility
   const isEmiEligible = finalTotal > 100000;
   
@@ -895,7 +890,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                                             />
                                             <button 
                                                 onClick={handleApplyPromo}
-                                                className="text-xs font-bold px-3 hover:bg-gray-50 rounded-r-lg"
+                                                className="text-xs font-bold px-0 hover:bg-gray-50 rounded-r-lg"
                                                 style={{ color: COLORS.primary }}
                                             >
                                                 APPLY
