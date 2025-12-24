@@ -689,7 +689,7 @@ export default function Community() {
             </main>
 
             {/* RIGHT SIDEBAR (Suggestions) - Hidden on Mobile */}
-            <aside className={`${showRightSidebar ? 'block fixed inset-y-0 right-0 z-40 w-72 bg-white shadow-xl' : 'hidden'} xl:block xl:relative xl:top-auto xl:bottom-auto xl:right-auto xl:z-auto xl:w-72 xl:shadow-none w-72 p-4 sticky top-16 h-[calc(100vh-64px)] overflow-y-auto`}>
+            <aside className={`${showRightSidebar ? 'block fixed inset-y-0 right-0 z-40 w-11/12 max-w-sm bg-white shadow-xl' : 'hidden'} xl:block xl:relative xl:top-auto xl:bottom-auto xl:right-auto xl:z-auto xl:w-80 xl:shadow-none w-72 p-4 sticky top-16 h-[calc(100vh-64px)] overflow-y-auto`}>
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 xl:hidden">
                     <div>
                         <h3 className="font-bold text-gray-900 text-base mb-1">Suggestions</h3>
