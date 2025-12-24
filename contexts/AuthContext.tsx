@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { onAuthStateChange } from '../firebase/authService';
 
-interface User {
+export interface User {
   uid: string;
   displayName: string | null;
   email: string | null;
@@ -33,20 +33,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const logout = () => {
+  const logout = async () => {
     setCurrentUser(null);
   };
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChange((user) => {
+    const unsubscribe = onAuthStateChange(async (user) => {
       if (user) {
-        setCurrentUser({
+        const userData = {
           uid: user.uid,
           displayName: user.displayName,
           email: user.email,
           photoURL: user.photoURL,
           emailVerified: user.emailVerified,
-        });
+        };
+        
+        setCurrentUser(userData);
       } else {
         setCurrentUser(null);
       }
@@ -54,7 +56,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     });
 
     // Cleanup subscription on unmount
-    return () => unsubscribe();
+    return () => {
+      unsubscribe();
+    };
   }, []);
 
   const value = {

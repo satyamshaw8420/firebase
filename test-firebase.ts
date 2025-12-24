@@ -1,5 +1,5 @@
 import { auth, db } from './firebase/firebaseConfig';
-import { collection, addDoc, getDocs } from 'firebase/firestore';
+import { collection, addDoc, getDocs, serverTimestamp } from 'firebase/firestore';
 
 // Test Firebase Authentication
 export const testFirebaseAuth = () => {
@@ -25,7 +25,7 @@ export const testFirestoreWrite = async () => {
   try {
     const docRef = await addDoc(collection(db, 'test'), {
       message: 'Hello Firebase!',
-      timestamp: new Date()
+      timestamp: serverTimestamp()
     });
     console.log('Document written with ID: ', docRef.id);
     return true;

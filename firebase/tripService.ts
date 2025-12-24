@@ -15,6 +15,36 @@ export const addTrip = async (trip: Omit<SavedTrip, 'id'>) => {
   }
 };
 
+// Join a trip
+export const joinTrip = async (tripId: string, userId: string) => {
+  try {
+    // Get the current trip
+    const trip = await getDocument(TRIPS_COLLECTION, tripId);
+    if (!trip) {
+      throw new Error('Trip not found');
+    }
+    
+    // Initialize joiners array if it doesn't exist
+    const joiners = trip.joiners || [];
+    
+    // Check if user is already joined
+    if (joiners.includes(userId)) {
+      throw new Error('User already joined this trip');
+    }
+    
+    // Add user to joiners
+    joiners.push(userId);
+    
+    // Update the trip
+    await updateDocument(TRIPS_COLLECTION, tripId, { joiners });
+    
+    return tripId;
+  } catch (error) {
+    console.error('Error joining trip:', error);
+    throw error;
+  }
+};
+
 // Get a trip by ID
 export const getTrip = async (tripId: string) => {
   try {
@@ -69,6 +99,36 @@ export const getAllTrips = async () => {
     return trips;
   } catch (error) {
     console.error('Error getting all trips:', error);
+    throw error;
+  }
+};
+
+// Get discoverable trips for community members
+export const getDiscoverableTrips = async (communityMemberIds: string[], currentUserId: string) => {
+  try {
+    // Query trips that belong to community members but exclude current user's trips
+    const trips = [];
+    
+    // Since we can't directly query all trips due to security rules,
+    // we need to query each user's trips individually
+    for (const userId of communityMemberIds) {
+      if (userId !== currentUserId) {
+        try {
+          const userTrips = await queryDocuments(
+            TRIPS_COLLECTION,
+            [{ field: 'userId', operator: '==', value: userId }]
+          );
+          trips.push(...userTrips);
+        } catch (error) {
+          // Skip users whose trips we can't access
+          console.warn(`Could not fetch trips for user ${userId}:`, error);
+        }
+      }
+    }
+    
+    return trips;
+  } catch (error) {
+    console.error('Error getting discoverable trips:', error);
     throw error;
   }
 };

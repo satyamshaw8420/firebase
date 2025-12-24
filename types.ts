@@ -77,6 +77,7 @@ export interface SavedTrip extends Itinerary {
   createdAt: number;
   preferences: TripPreferences;
   isBooked?: boolean; // New field
+  joiners?: string[]; // Users who have joined this trip
 }
 
 export interface GuideProfile {
@@ -96,4 +97,8 @@ export interface User {
   name: string;
   email: string;
   avatar: string;
+}
+
+export interface UserData extends User {
+  onboardingCompleted?: boolean;
 }

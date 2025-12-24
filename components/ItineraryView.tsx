@@ -1,8 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Itinerary, TripPreferences } from '../types';
 import { Wallet, MapPin, CheckCircle, Download, Users, Edit2, Save, X, Trash2, CreditCard, Check, Eye, Share2, Smartphone, Lock, AlertCircle, Phone, Mail, QrCode, Globe, ShieldCheck, Gift, ChevronRight, Copy } from 'lucide-react';
 // @ts-ignore
 import html2pdf from 'html2pdf.js';
+import { gsap } from 'gsap';  
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
+
+gsap.registerPlugin(ScrollTrigger);
 interface ItineraryViewProps {
   itinerary: Itinerary;
   preferences?: TripPreferences; // Needed for traveler count
@@ -63,6 +67,14 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
 
   const [upiId, setUpiId] = useState('');
   const [upiVerified, setUpiVerified] = useState(false);
+  
+  // Refs for GSAP animation targets
+  const headerRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const dayRefs = useRef<Record<number, HTMLDivElement>>({});
+  const activityRefs = useRef<Record<string, HTMLDivElement>>({});
+  const footerRef = useRef<HTMLDivElement>(null);
+  const paymentModalRef = useRef<HTMLDivElement>(null);
 
   // Financials
   const [walletBalance] = useState<number>(185000); 
@@ -217,9 +229,63 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                               (paymentMethod === 'EMI' && !isEmiEligible) || 
                               (paymentMethod === 'WALLET' && !isWalletEligible);
 
+  // GSAP Animations
+  useEffect(() => {
+    // Animate header
+    if (headerRef.current) {
+      gsap.fromTo(headerRef.current, 
+        { y: -50, opacity: 0 },
+        { y: 0, opacity: 1, duration: 0.8, ease: "power3.out" }
+      );
+    }
+    
+    // Animate content
+    if (contentRef.current) {
+      gsap.fromTo(contentRef.current,
+        { y: 30, opacity: 0 },
+        { y: 0, opacity: 1, duration: 0.8, ease: "power3.out", delay: 0.2 }
+      );
+    }
+    
+    // Animate days
+    Object.values(dayRefs.current).forEach((dayRef, index) => {
+      if (dayRef) {
+        gsap.fromTo(dayRef,
+          { x: -30, opacity: 0 },
+          { x: 0, opacity: 1, duration: 0.6, ease: "power2.out", delay: 0.1 * index, stagger: 0.1 }
+        );
+      }
+    });
+    
+    // Animate footer
+    if (footerRef.current) {
+      gsap.fromTo(footerRef.current,
+        { y: 30, opacity: 0 },
+        { y: 0, opacity: 1, duration: 0.8, ease: "power3.out", delay: 0.4 }
+      );
+    }
+    
+    // Cleanup on unmount
+    return () => {
+      ScrollTrigger.getAll().forEach(trigger => trigger.kill());
+    };
+  }, [itinerary]);
+  
+  // Animate activities when they change
+  useEffect(() => {
+    Object.values(activityRefs.current).forEach((activityRef, index) => {
+      if (activityRef) {
+        gsap.fromTo(activityRef,
+          { scale: 0.9, opacity: 0 },
+          { scale: 1, opacity: 1, duration: 0.4, ease: "back.out(1.7)", delay: 0.05 * index }
+        );
+      }
+    });
+  }, [editedData.dailyItinerary]);
+
   return (
       <div id="itinerary-content" className="max-w-5xl mx-auto px-4 py-8 relative">
-        <div className="bg-white rounded-3xl shadow-xl overflow-hidden animate-in fade-in slide-in-from-bottom-4">
+        <div ref={headerRef} className="bg-white rounded-3xl shadow-xl overflow-hidden animate-in fade-in slide-in-from-bottom-4">
             
             {/* Header Section */}
             <div className="p-8 text-white relative overflow-hidden" style={{ backgroundColor: COLORS.primary }}>
@@ -299,17 +365,17 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
             </div>
 
             {/* Content Body */}
-            <div className="p-8">
+            <div ref={contentRef} className="p-8">
                 <h2 className="text-2xl font-bold text-gray-800 mb-6">Your Daily Itinerary</h2>
                 <div className="space-y-8">
                     {editedData.dailyItinerary.map((day, dayIndex) => (
-                        <div key={day.day} className="border-l-4 pl-6 relative" style={{ borderColor: COLORS.primary }}>
+                        <div key={day.day} ref={el => dayRefs.current[day.day] = el!} className="border-l-4 pl-6 relative" style={{ borderColor: COLORS.primary }}>
                             <div className="absolute -left-[11px] top-0 rounded-full w-5 h-5 border-4 border-white" style={{ backgroundColor: COLORS.primary }}></div>
                             <h3 className="text-xl font-bold text-gray-800 mb-1">Day {day.day}: {day.theme}</h3>
                             
                             <div className="space-y-4 mt-4">
                                 {day.activities.map((act, actIndex) => (
-                                    <div key={actIndex} className={`bg-gray-50 p-4 rounded-xl border border-gray-100 transition-all ${isEditing ? 'hover:border-blue-300' : 'hover:bg-slate-50'}`}>
+                                    <div key={`${day.day}-${actIndex}`} ref={el => activityRefs.current[`${day.day}-${actIndex}`] = el!} className={`bg-gray-50 p-4 rounded-xl border border-gray-100 transition-all ${isEditing ? 'hover:border-blue-300' : 'hover:bg-slate-50'}`}>
                                         
                                         {/* Activity Header: Time & Cost */}
                                         <div className="flex justify-between items-start mb-2">
@@ -394,7 +460,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
             </div>
             
             {/* Footer Actions */}
-            <div className="p-8 border-t border-gray-100 flex flex-col md:flex-row justify-between items-center gap-4 bg-gray-50">
+            <div ref={footerRef} className="p-8 border-t border-gray-100 flex flex-col md:flex-row justify-between items-center gap-4 bg-gray-50">
                 <button onClick={onClose} className="text-gray-600 font-medium hover:text-gray-900 px-6 py-2">{closeLabel}</button>
                 
                 <div className="flex gap-4">
@@ -442,7 +508,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
 
         {/* Payment Modal */}
         {showPaymentModal && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-md p-4 animate-in fade-in">
+            <div ref={paymentModalRef} className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-md p-4 animate-in fade-in">
                 <div className="bg-white rounded-3xl shadow-2xl max-w-4xl w-full overflow-hidden flex flex-col max-h-[90vh]">
                     
                     {/* Header */}

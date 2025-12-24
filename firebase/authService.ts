@@ -21,10 +21,23 @@ setPersistence(auth, browserLocalPersistence)
 // Sign in with Google
 export const signInWithGooglePopup = async () => {
   try {
+    // Add additional configuration to handle popup issues
+    googleProvider.setCustomParameters({
+      prompt: 'select_account' // Forces account selection
+    });
+    
     const result = await signInWithPopup(auth, googleProvider);
     return result.user;
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error signing in with Google:', error);
+    
+    // Handle specific error codes
+    if (error.code === 'auth/popup-closed-by-user') {
+      console.log('Popup was closed by the user');
+    } else if (error.code === 'auth/cancelled-popup-request') {
+      console.log('Popup request was cancelled');
+    }
+    
     throw error;
   }
 };

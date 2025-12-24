@@ -2,16 +2,114 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Trips can only be read, updated, or deleted by their owner
+    // Trips can only be updated or deleted by their owner, but can be read by other authenticated users
+    // Users can join trips by updating the joiners array
     match /trips/{tripId} {
-      allow read, update, delete: if request.auth != null && request.auth.uid == resource.data.userId;
+      allow read: if request.auth != null;
       allow create: if request.auth != null;
+      allow update: if request.auth != null && 
+        (request.auth.uid == resource.data.userId || 
+         (request.auth.uid != resource.data.userId && 
+          'joiners' in request.data && 
+          request.auth.uid in request.data.joiners));
+      allow delete: if request.auth != null && request.auth.uid == resource.data.userId;
     }
     
-    // Allow users to read their own data
+    // Allow users to read all user data (for search/community features)
+    // But only allow users to update/delete their own data
     match /users/{userId} {
-      allow read, update, delete: if request.auth != null && request.auth.uid == userId;
+      allow read: if request.auth != null;
       allow create: if request.auth != null;
+      allow update, delete: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Communities - anyone can read public communities
+    match /communities/{communityId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null && request.auth.uid == resource.data.createdBy;
+    }
+    
+    // Community members - allow users to manage their own membership
+    match /communities/{communityId}/members/{memberId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && request.auth.uid == memberId;
+      allow update, delete: if request.auth != null && 
+        (request.auth.uid == memberId || 
+         get(/databases/$(database)/documents/communities/$(communityId)/members/$(request.auth.uid)).data.role == 'admin');
+    }
+    
+    // Community messages
+    match /communities/{communityId}/messages/{messageId} {
+      // Allow read for community members
+      allow read: if request.auth != null && 
+        exists(/databases/$(database)/documents/communities/$(communityId)/members/$(request.auth.uid));
+      
+      // Allow create for community members
+      allow create: if request.auth != null && 
+        exists(/databases/$(database)/documents/communities/$(communityId)/members/$(request.auth.uid));
+        
+      // Allow update/delete only for message creator or admins
+      allow update, delete: if request.auth != null && 
+        (request.auth.uid == resource.data.userId ||
+         get(/databases/$(database)/documents/communities/$(communityId)/members/$(request.auth.uid)).data.role == 'admin');
+    }
+    
+    // Public collections - allow read for authenticated users
+    match /suggestedTravelers/{document} {
+      allow read: if request.auth != null;
+      allow create, update, delete: if request.auth != null && isAdmin();
+    }
+    
+    match /localGuides/{document} {
+      allow read: if request.auth != null;
+      allow create, update, delete: if request.auth != null && isAdmin();
+    }
+    
+    match /posts/{document} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null && request.auth.uid == resource.data.userId;
+    }
+    
+    match /stories/{document} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null && request.auth.uid == resource.data.userId;
+    }
+    
+    match /events/{document} {
+      allow read: if request.auth != null;
+      allow create, update, delete: if request.auth != null && isAdmin();
+    }
+    
+    match /travelTips/{document} {
+      allow read: if request.auth != null;
+      allow create, update, delete: if request.auth != null && isAdmin();
+    }
+    
+    // Chats - users can read their own chats
+    match /chats/{chatId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      // Allow participants to update typing status and other chat metadata
+      allow update: if request.auth != null && request.auth.uid in resource.data.participants;
+      allow delete: if request.auth != null && request.auth.uid == resource.data.createdBy;
+    }
+    
+    // Chat messages
+    match /chats/{chatId}/messages/{messageId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      // Allow users to delete messages in chats they participate in
+      allow update, delete: if request.auth != null && 
+        (request.auth.uid == resource.data.userId || 
+         request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants);
+    }
+    
+    // Helper function to check if user is admin
+    function isAdmin() {
+      return request.auth.token.admin == true;
     }
   }
 }
