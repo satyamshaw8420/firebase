@@ -689,14 +689,14 @@ export default function Community() {
             </main>
 
             {/* RIGHT SIDEBAR (Suggestions) - Hidden on Mobile */}
-            <aside className={`${showRightSidebar ? 'block fixed inset-y-0 right-0 z-40 w-11/12 max-w-sm bg-white shadow-xl' : 'hidden'} xl:block xl:relative xl:top-auto xl:bottom-auto xl:right-auto xl:z-auto xl:w-80 xl:shadow-none w-72 p-4 sticky top-16 h-[calc(100vh-64px)] overflow-y-auto`}>
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 xl:hidden">
+            <aside className={`${showRightSidebar ? 'block fixed inset-0 z-40 w-full bg-white shadow-xl' : 'hidden'} xl:block xl:relative xl:top-auto xl:bottom-auto xl:right-auto xl:z-auto xl:w-80 xl:shadow-none w-72 p-4 sticky top-16 h-[calc(100vh-64px)] overflow-y-auto`}>
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 xl:hidden p-4 pt-6">
                     <div>
                         <h3 className="font-bold text-gray-900 text-base mb-1">Suggestions</h3>
                     </div>
                     <button 
                         onClick={() => setShowRightSidebar(false)}
-                        className="text-gray-500 hover:text-gray-700 xl:hidden"
+                        className="text-gray-500 hover:text-gray-700 xl:hidden text-2xl"
                     >
                         ✕
                     </button>
@@ -935,10 +935,10 @@ export default function Community() {
                 <button onClick={() => setActiveTab('profile')} className={`${activeTab === 'profile' ? 'text-emerald-600' : 'text-gray-400'}`}><Users className="w-5 h-5" /></button>
             </div>
             
-            {/* Mobile sidebar backdrop */}
+            {/* Sidebar backdrop - needed for both mobile and desktop, but different behavior */}
             {showRightSidebar && (
                 <div 
-                    className="fixed inset-0 bg-black bg-opacity-50 z-30 md:hidden"
+                    className="fixed inset-0 bg-black bg-opacity-50 z-30"
                     onClick={() => setShowRightSidebar(false)}
                 ></div>
             )}
