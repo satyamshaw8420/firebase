@@ -58,6 +58,7 @@ export default function Community() {
         name: '',
         members: [] as any[]
     });
+    
     const [showRightSidebar, setShowRightSidebar] = useState(false);
 
     // Fetch communities from Firestore with real-time updates
@@ -317,17 +318,7 @@ export default function Community() {
 
             {/* MAIN CONTENT AREA */}
             <main className="flex-1 max-w-3xl mx-auto w-full px-2">
-                {/* Mobile toggle button for right sidebar */}
-                <div className="md:hidden mb-4 flex justify-end">
-                    <button 
-                        onClick={() => setShowRightSidebar(!showRightSidebar)}
-                        className="px-4 py-2 bg-emerald-500 text-white rounded-lg text-sm font-medium flex items-center gap-2"
-                    >
-                        {showRightSidebar ? 'Hide' : 'Show'} Suggestions
-                    </button>
-                </div>
-                
-                {activeTab === 'feed' && <FeedView posts={posts} toggleLike={toggleLike} />}
+                {activeTab === 'feed' && <FeedView posts={posts} toggleLike={toggleLike} setSelectedUser={setSelectedUser} allUsers={allUsers} currentUser={currentUser} setShowCreateCommunity={setShowCreateCommunity} />}
                 {activeTab === 'profile' && <ProfileView user={user} setUser={setUser} />}
                 {activeTab === 'chat' && <ChatView />}
 
@@ -933,6 +924,16 @@ export default function Community() {
                 <button onClick={() => setActiveTab('feed')} className={`${activeTab === 'feed' ? 'text-emerald-600' : 'text-gray-400'}`}><Compass className="w-5 h-5" /></button>
                 <button onClick={() => setActiveTab('chat')} className={`${activeTab === 'chat' ? 'text-emerald-600' : 'text-gray-400'}`}><MessageCircle className="w-5 h-5" /></button>
                 <button onClick={() => setActiveTab('profile')} className={`${activeTab === 'profile' ? 'text-emerald-600' : 'text-gray-400'}`}><Users className="w-5 h-5" /></button>
+                <button 
+                    onClick={() => setShowRightSidebar(true)} 
+                    className="text-gray-400 hover:text-emerald-600 relative"
+                >
+                    <div className="relative">
+                        <Grid className="w-5 h-5" />
+                        {/* Small indicator dot to show there are additional features in the sidebar */}
+                        <div className="absolute -top-1 -right-1 w-2 h-2 bg-emerald-500 rounded-full"></div>
+                    </div>
+                </button>
             </div>
             
             {/* Sidebar backdrop - needed for both mobile and desktop, but different behavior */}
@@ -949,7 +950,7 @@ export default function Community() {
 
 // --- SUB-COMPONENTS ---
 
-const FeedView = ({ posts, toggleLike }: any) => {
+const FeedView = ({ posts, toggleLike, setSelectedUser, allUsers, currentUser, setShowCreateCommunity }: any) => {
     const [stories, setStories] = useState<any[]>([]);
     const [upcomingEvents, setUpcomingEvents] = useState<any[]>([]);
     const [travelTips, setTravelTips] = useState<any[]>([]);
@@ -1001,6 +1002,80 @@ const FeedView = ({ posts, toggleLike }: any) => {
                 ))}
             </div>
 
+            {/* Suggested Travelers section */}
+            <div className="mb-6">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+                    <div>
+                        <h3 className="font-bold text-gray-900 text-base mb-1">Suggested Travelers</h3>
+                        <p className="text-gray-600 text-xs">Connect with fellow travelers</p>
+                    </div>
+                    <button className="text-emerald-600 font-semibold hover:text-emerald-700 px-3 py-1 rounded-lg hover:bg-emerald-50 transition-colors text-sm">See All</button>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                    {allUsers.filter(u => u.uid !== currentUser?.uid).slice(0, 6).map((traveler: any) => (
+                        <div 
+                            key={`feed-traveler-${traveler.uid}`}
+                            className="text-center cursor-pointer group hover:scale-105 transition-transform duration-200"
+                            onClick={() => {
+                                setSelectedUser(traveler);
+                            }}
+                        >
+                            <div className="relative mb-2">
+                                <div className="relative inline-block">
+                                    <img 
+                                        src={traveler.avatar || traveler.photoURL || traveler.profilePicture || getGmailAvatar(traveler.name, traveler.uid, 150)} 
+                                        className="w-14 h-14 rounded-full mx-auto object-cover border-2 border-white shadow-sm group-hover:shadow-md transition-shadow duration-200" 
+                                        alt={traveler.name} 
+                                        onError={(e) => {
+                                            const target = e.target as HTMLImageElement;
+                                            target.src = getGmailAvatar(traveler.name, traveler.uid, 150);
+                                        }}
+                                    />
+                                    <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full border border-white flex items-center justify-center text-white text-xs font-bold">
+                                        <Plane className="w-2 h-2" />
+                                    </div>
+                                </div>
+                                <div className="absolute inset-0 rounded-full bg-gradient-to-t from-black/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200"></div>
+                            </div>
+                            <h4 className="font-semibold text-xs text-gray-900 truncate group-hover:text-emerald-600 transition-colors duration-200">{traveler.name}</h4>
+                            <p className="text-[10px] text-gray-500 truncate mt-1">{traveler.location || 'Traveler'}</p>
+                            <button className="mt-1 px-2 py-1 bg-emerald-50 text-emerald-600 rounded text-[10px] font-medium hover:bg-emerald-100 transition-colors duration-200">
+                                Connect
+                            </button>
+                        </div>
+                    ))}
+                </div>
+            </div>
+            
+            {/* Create Community Button */}
+            <div className="mb-6">
+                <div className="flex justify-between items-center mb-4">
+                    <div>
+                        <h3 className="font-bold text-gray-900 text-base mb-1">Communities</h3>
+                        <p className="text-gray-600 text-xs">Create or join travel communities</p>
+                    </div>
+                    <button 
+                        onClick={() => setShowCreateCommunity(true)}
+                        className="text-emerald-600 font-semibold hover:text-emerald-700 px-3 py-1 rounded-lg hover:bg-emerald-50 transition-colors text-sm flex items-center gap-1"
+                    >
+                        <PlusCircle className="w-4 h-4" />
+                        Create
+                    </button>
+                </div>
+                
+                {/* Optional: Show a preview of user's communities or suggested communities */}
+                <div className="bg-gradient-to-r from-emerald-50 to-teal-50 rounded-xl p-4 border border-emerald-100">
+                    <p className="text-emerald-800 text-sm font-medium mb-2">Start your own travel community!</p>
+                    <p className="text-emerald-700 text-xs mb-3">Connect with travelers who share your interests and destinations.</p>
+                    <button 
+                        onClick={() => setShowCreateCommunity(true)}
+                        className="w-full py-2 bg-emerald-500 text-white rounded-lg font-medium hover:bg-emerald-600 transition-colors text-sm"
+                    >
+                        Create New Community
+                    </button>
+                </div>
+            </div>
+            
             {/* Upcoming Events Banner */}
             <div className="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl p-6 text-white mb-6 shadow-lg">
                 <div className="flex justify-between items-start mb-4">
