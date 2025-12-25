@@ -318,7 +318,7 @@ export default function Community() {
 
             {/* MAIN CONTENT AREA */}
             <main className="flex-1 max-w-3xl mx-auto w-full px-2">
-                {activeTab === 'feed' && <FeedView posts={posts} toggleLike={toggleLike} setSelectedUser={setSelectedUser} allUsers={allUsers} currentUser={currentUser} setShowCreateCommunity={setShowCreateCommunity} />}
+                {activeTab === 'feed' && <FeedView posts={posts} toggleLike={toggleLike} setSelectedUser={setSelectedUser} allUsers={allUsers} currentUser={currentUser} setShowCreateCommunity={setShowCreateCommunity} communities={communities} localGuides={localGuides} communityMembers={communityMembers} showAllMembers={showAllMembers} setShowAllMembers={setShowAllMembers} handleDeleteCommunity={handleDeleteCommunity} setSelectedCommunity={setSelectedCommunity} setActiveTab={setActiveTab} />}
                 {activeTab === 'profile' && <ProfileView user={user} setUser={setUser} />}
                 {activeTab === 'chat' && <ChatView />}
 
@@ -679,245 +679,6 @@ export default function Community() {
                 )}
             </main>
 
-            {/* RIGHT SIDEBAR (Suggestions) - Hidden on Mobile */}
-            <aside className={`${showRightSidebar ? 'block fixed inset-0 z-40 w-full bg-white shadow-xl' : 'hidden'} xl:block xl:relative xl:top-auto xl:bottom-auto xl:right-auto xl:z-auto xl:w-80 xl:shadow-none w-72 p-4 sticky top-16 h-[calc(100vh-64px)] overflow-y-auto`}>
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 xl:hidden p-4 pt-6">
-                    <div>
-                        <h3 className="font-bold text-gray-900 text-base mb-1">Suggestions</h3>
-                    </div>
-                    <button 
-                        onClick={() => setShowRightSidebar(false)}
-                        className="text-gray-500 hover:text-gray-700 xl:hidden text-2xl"
-                    >
-                        ✕
-                    </button>
-                </div>
-                <div className="xl:flex xl:flex-col xl:space-y-8">
-                    <div>
-                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 xl:block xl:mb-6">
-                            <div>
-                                <h3 className="font-bold text-gray-900 text-base mb-1">Suggested Travelers</h3>
-                                <p className="text-gray-600 text-xs">Connect with fellow travelers</p>
-                            </div>
-                            <button className="text-emerald-600 font-semibold hover:text-emerald-700 px-3 py-1 rounded-lg hover:bg-emerald-50 transition-colors text-sm xl:hidden">See All</button>
-                        </div>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-6">
-                            {allUsers.filter(u => u.uid !== currentUser?.uid).slice(0, 6).map((traveler: any) => (
-                                <div 
-                                    key={`traveler-${traveler.uid}`}
-                                    className="text-center cursor-pointer group hover:scale-105 transition-transform duration-200"
-                                    onClick={() => setSelectedUser(traveler)}
-                                >
-                                    <div className="relative mb-3">
-                                        <div className="relative inline-block">
-                                            <img 
-                                                src={traveler.avatar || traveler.photoURL || traveler.profilePicture || getGmailAvatar(traveler.name, traveler.uid, 150)} 
-                                                className="w-16 h-16 rounded-full mx-auto object-cover border-4 border-white shadow-sm group-hover:shadow-lg transition-shadow duration-200" 
-                                                alt={traveler.name} 
-                                                onError={(e) => {
-                                                    const target = e.target as HTMLImageElement;
-                                                    target.src = getGmailAvatar(traveler.name, traveler.uid, 150);
-                                                }}
-                                            />
-                                            <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-emerald-500 rounded-full border-2 border-white flex items-center justify-center text-white text-xs font-bold">
-                                                <Plane className="w-2.5 h-2.5" />
-                                            </div>
-                                        </div>
-                                        <div className="absolute inset-0 rounded-full bg-gradient-to-t from-black/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200"></div>
-                                    </div>
-                                    <h4 className="font-semibold text-sm text-gray-900 truncate group-hover:text-emerald-600 transition-colors duration-200">{traveler.name}</h4>
-                                    <p className="text-xs text-gray-500 truncate mt-1">{traveler.location || 'Traveler'}</p>
-                                    <button className="mt-2 px-3 py-1 bg-emerald-50 text-emerald-600 rounded-lg text-xs font-medium hover:bg-emerald-100 transition-colors duration-200">
-                                        Connect
-                                    </button>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-
-                    <div className="mt-8">
-                        <div className="flex justify-between items-center mb-4">
-                            <h3 className="font-bold text-gray-500 text-sm">COMMUNITIES</h3>
-                            <button
-                                className="text-xs font-bold text-emerald-600"
-                                onClick={() => setShowCreateCommunity(true)}
-                            >
-                                Create Community
-                            </button>
-                        </div>
-                        <div className="space-y-2 max-h-40 overflow-y-auto pr-2">
-                            {communities.map(community => (
-                                <div
-                                    key={community.id}
-                                    className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-50 cursor-pointer"
-                                    onClick={() => setSelectedCommunity(community)}
-                                >
-                                    <img src={community.imageUrl || getGmailAvatar(community.name, community.id, 150)} className="w-10 h-10 rounded-lg object-cover" alt={community.name} />
-                                    <div className="flex-1 min-w-0">
-                                        <h4 className="font-bold text-sm text-gray-900 truncate">{community.name}</h4>
-                                        <p className="text-xs text-gray-500 truncate">{community.description}</p>
-                                        <div className="flex items-center text-xs text-gray-400 mt-1">
-                                            <Users className="w-3 h-3 mr-1" />
-                                            {community.memberCount?.toLocaleString() || 0} members
-                                        </div>
-                                    </div>
-                                    <div className="flex gap-1">
-                                        {/* Show Join button only for non-creators who are not members */}
-                                        {community.createdBy !== currentUser?.uid && (
-                                            <button
-                                                className="text-emerald-500 hover:text-emerald-600 text-xs font-bold"
-                                                onClick={async (e) => {
-                                                    e.stopPropagation();
-                                                    if (currentUser) {
-                                                        // Show loading toast
-                                                        const toastId = toast.loading(`Joining ${community.name}...`);
-                                                        
-                                                        try {
-                                                            await joinCommunity(community.id, currentUser.uid, currentUser);
-                                                            toast.success(`Welcome! You have successfully joined ${community.name}.`, {
-                                                                id: toastId
-                                                            });
-                                                        } catch (error) {
-                                                            console.error('Error joining community:', error);
-                                                            toast.error('Failed to join community. Please try again.', {
-                                                                id: toastId
-                                                            });
-                                                        }
-                                                    }
-                                                }}
-                                            >
-                                                Join
-                                            </button>
-                                        )}                                    <button
-                                            className="text-gray-400 hover:text-gray-600"
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                // Copy community link to clipboard
-                                                const communityUrl = `${window.location.origin}/community/${community.id}`;
-                                                navigator.clipboard.writeText(communityUrl);
-                                                // In a real app, you might show a toast notification here
-                                                alert('Community link copied to clipboard!');
-                                            }}
-                                        >
-                                            <Share2 className="w-3 h-3" />
-                                        </button>
-                                        {community.createdBy === currentUser?.uid && (
-                                            <button
-                                                className="text-red-500 hover:text-red-600"
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    handleDeleteCommunity(community.id, community.name);
-                                                }}
-                                            >
-                                                <Trash2 className="w-3 h-3" />
-                                            </button>
-                                        )}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-
-                    <div className="mt-8">
-                        {/* Search Bar */}
-                        <div className="mb-4">
-                            <div className="relative">
-                                <input
-                                    type="text"
-                                    placeholder="Search members..."
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm"
-                                />
-                                <Search className="absolute right-3 top-2.5 w-4 h-4 text-gray-400" />
-                            </div>
-                        </div>
-
-                        <div className="flex justify-between items-center mb-4">
-                            <h3 className="font-bold text-gray-500 text-sm">LOCAL GUIDES</h3>
-                            <button className="text-xs font-bold text-emerald-600">See All</button>
-                        </div>
-                        <div className="space-y-2 max-h-40 overflow-y-auto pr-2">
-                            {localGuides.map(guide => (
-                                <div key={guide.id} className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-50 cursor-pointer">
-                                    <img src={guide.image || getGmailAvatar(guide.name, guide.id, 150)} className="w-10 h-10 rounded-full object-cover" alt={guide.name} />
-                                    <div className="flex-1 min-w-0">
-                                        <h4 className="font-bold text-sm text-gray-900 truncate">{guide.name}</h4>
-                                        <p className="text-xs text-gray-500 truncate">{guide.location}</p>
-                                        <div className="flex items-center text-xs text-gray-400 mt-1">
-                                            <span className="text-amber-500 mr-1">★</span>
-                                            <span className="font-bold text-gray-700 mr-1">{guide.rating}</span>
-                                            <span>({guide.reviews})</span>
-                                        </div>
-                                    </div>
-                                    <button className="text-emerald-500 hover:text-emerald-600 text-xs font-bold">
-                                        Contact
-                                    </button>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-
-                    <div className="mt-8">
-                        <div className="flex justify-between items-center mb-4">
-                            <h3 className="font-bold text-gray-500 text-sm">COMMUNITY MEMBERS</h3>
-                            <button className="text-xs font-bold text-emerald-600" onClick={() => setShowAllMembers(true)}>
-                                See All
-                            </button>
-                        </div>
-                        <div className="space-y-2 max-h-40 overflow-y-auto pr-2">
-                            {communityMembers.slice(0, 3).map(member => (
-                                <div key={member.id} className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-50 cursor-pointer">
-                                    <img src={member.avatar || member.photoURL || getGmailAvatar(member.name, member.userId, 150)} className="w-8 h-8 rounded-full object-cover" alt={member.name || member.userId} />
-                                    <div className="flex-1 min-w-0">
-                                        <h4 className="font-bold text-sm text-gray-900 truncate">{member.name || 'Traveler'}</h4>
-                                        <p className="text-xs text-gray-500 truncate">{member.role || 'member'}</p>
-                                    </div>
-                                    <button 
-                                        className="text-emerald-500 hover:text-emerald-600 text-xs font-bold"
-                                        onClick={async () => {
-                                            if (!currentUser) return;
-                                            try {
-                                                // Check if chat already exists
-                                                let existingChat = await getExistingChat(currentUser.uid, member.userId);
-                                                let chatId;
-                                                
-                                                if (existingChat) {
-                                                    chatId = existingChat.id;
-                                                } else {
-                                                    // Create new chat
-                                                    chatId = await createDirectMessageChat(
-                                                        currentUser.uid,
-                                                        member.userId,
-                                                        {
-                                                            name: currentUser.displayName || 'User',
-                                                            avatar: currentUser.photoURL || getGmailAvatar(currentUser.displayName || 'User', currentUser.uid, 150),
-                                                            handle: `@${currentUser.displayName?.toLowerCase().replace(/\s+/g, '') || 'user'}`,
-                                                            uid: currentUser.uid
-                                                        },
-                                                        {
-                                                            name: member.name || 'User',
-                                                            avatar: member.avatar || member.photoURL || getGmailAvatar(member.name || 'User', member.userId, 150),
-                                                            handle: member.handle || `@${member.name?.toLowerCase().replace(/\s+/g, '') || 'user'}`,
-                                                            uid: member.userId
-                                                        }
-                                                    );
-                                                }
-                                                
-                                                // Switch to chat tab and open this chat
-                                                setActiveTab('chat');
-                                            } catch (error) {
-                                                console.error('Error initiating chat:', error);
-                                                alert('Failed to start chat. Please try again.');
-                                            }
-                                        }}
-                                    >
-                                        Message
-                                    </button>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                </div>
-            </aside>
 
             {/* MOBILE BOTTOM NAV */}
             <div className={`${showRightSidebar ? 'hidden' : 'md:hidden'} fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-2.5 flex justify-between z-50`}>
@@ -950,7 +711,7 @@ export default function Community() {
 
 // --- SUB-COMPONENTS ---
 
-const FeedView = ({ posts, toggleLike, setSelectedUser, allUsers, currentUser, setShowCreateCommunity }: any) => {
+const FeedView = ({ posts, toggleLike, setSelectedUser, allUsers, currentUser, setShowCreateCommunity, communities, localGuides, communityMembers, showAllMembers, setShowAllMembers, handleDeleteCommunity, setSelectedCommunity, setActiveTab }: any) => {
     const [stories, setStories] = useState<any[]>([]);
     const [upcomingEvents, setUpcomingEvents] = useState<any[]>([]);
     const [travelTips, setTravelTips] = useState<any[]>([]);
@@ -1076,6 +837,191 @@ const FeedView = ({ posts, toggleLike, setSelectedUser, allUsers, currentUser, s
                 </div>
             </div>
             
+            {/* Communities Section from Right Panel */}
+            <div className="mb-8">
+                <div className="flex justify-between items-center mb-4">
+                    <h3 className="font-bold text-gray-500 text-sm">COMMUNITIES</h3>
+                    <button
+                        className="text-xs font-bold text-emerald-600"
+                        onClick={() => setShowCreateCommunity(true)}
+                    >
+                        Create Community
+                    </button>
+                </div>
+                <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
+                    {communities.map(community => (
+                        <div
+                            key={community.id}
+                            className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-50 cursor-pointer"
+                            onClick={() => setSelectedCommunity(community)}
+                        >
+                            <img src={community.imageUrl || getGmailAvatar(community.name, community.id, 150)} className="w-10 h-10 rounded-lg object-cover" alt={community.name} />
+                            <div className="flex-1 min-w-0">
+                                <h4 className="font-bold text-sm text-gray-900 truncate">{community.name}</h4>
+                                <p className="text-xs text-gray-500 truncate">{community.description}</p>
+                                <div className="flex items-center text-xs text-gray-400 mt-1">
+                                    <Users className="w-3 h-3 mr-1" />
+                                    {community.memberCount?.toLocaleString() || 0} members
+                                </div>
+                            </div>
+                            <div className="flex gap-1">
+                                {/* Show Join button only for non-creators who are not members */}
+                                {community.createdBy !== currentUser?.uid && (
+                                    <button
+                                        className="text-emerald-500 hover:text-emerald-600 text-xs font-bold"
+                                        onClick={async (e) => {
+                                            e.stopPropagation();
+                                            if (currentUser) {
+                                                // Show loading toast
+                                                const toastId = toast.loading(`Joining ${community.name}...`);
+                                                
+                                                try {
+                                                    await joinCommunity(community.id, currentUser.uid, currentUser);
+                                                    toast.success(`Welcome! You have successfully joined ${community.name}.`, {
+                                                        id: toastId
+                                                    });
+                                                } catch (error) {
+                                                    console.error('Error joining community:', error);
+                                                    toast.error('Failed to join community. Please try again.', {
+                                                        id: toastId
+                                                    });
+                                                }
+                                            }
+                                        }}
+                                    >
+                                        Join
+                                    </button>
+                                )}                                    <button
+                                    className="text-gray-400 hover:text-gray-600"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        // Copy community link to clipboard
+                                        const communityUrl = `${window.location.origin}/community/${community.id}`;
+                                        navigator.clipboard.writeText(communityUrl);
+                                        // In a real app, you might show a toast notification here
+                                        alert('Community link copied to clipboard!');
+                                    }}
+                                >
+                                    <Share2 className="w-3 h-3" />
+                                </button>
+                                {community.createdBy === currentUser?.uid && (
+                                    <button
+                                        className="text-red-500 hover:text-red-600"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleDeleteCommunity(community.id, community.name);
+                                        }}
+                                    >
+                                        <Trash2 className="w-3 h-3" />
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            {/* Search Bar */}
+            <div className="mb-4">
+                <div className="relative">
+                    <input
+                        type="text"
+                        placeholder="Search members..."
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm"
+                    />
+                    <Search className="absolute right-3 top-2.5 w-4 h-4 text-gray-400" />
+                </div>
+            </div>
+
+            {/* Local Guides Section */}
+            <div className="mb-8">
+                <div className="flex justify-between items-center mb-4">
+                    <h3 className="font-bold text-gray-500 text-sm">LOCAL GUIDES</h3>
+                    <button className="text-xs font-bold text-emerald-600">See All</button>
+                </div>
+                <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
+                    {localGuides.map(guide => (
+                        <div key={guide.id} className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-50 cursor-pointer">
+                            <img src={guide.image || getGmailAvatar(guide.name, guide.id, 150)} className="w-10 h-10 rounded-full object-cover" alt={guide.name} />
+                            <div className="flex-1 min-w-0">
+                                <h4 className="font-bold text-sm text-gray-900 truncate">{guide.name}</h4>
+                                <p className="text-xs text-gray-500 truncate">{guide.location}</p>
+                                <div className="flex items-center text-xs text-gray-400 mt-1">
+                                    <span className="text-amber-500 mr-1">★</span>
+                                    <span className="font-bold text-gray-700 mr-1">{guide.rating}</span>
+                                    <span>({guide.reviews})</span>
+                                </div>
+                            </div>
+                            <button className="text-emerald-500 hover:text-emerald-600 text-xs font-bold">
+                                Contact
+                            </button>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            {/* Community Members Section */}
+            <div className="mb-8">
+                <div className="flex justify-between items-center mb-4">
+                    <h3 className="font-bold text-gray-500 text-sm">COMMUNITY MEMBERS</h3>
+                    <button className="text-xs font-bold text-emerald-600" onClick={() => setShowAllMembers(true)}>
+                        See All
+                    </button>
+                </div>
+                <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
+                    {communityMembers.slice(0, 3).map(member => (
+                        <div key={member.id} className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-50 cursor-pointer">
+                            <img src={member.avatar || member.photoURL || getGmailAvatar(member.name, member.userId, 150)} className="w-8 h-8 rounded-full object-cover" alt={member.name || member.userId} />
+                            <div className="flex-1 min-w-0">
+                                <h4 className="font-bold text-sm text-gray-900 truncate">{member.name || 'Traveler'}</h4>
+                                <p className="text-xs text-gray-500 truncate">{member.role || 'member'}</p>
+                            </div>
+                            <button 
+                                className="text-emerald-500 hover:text-emerald-600 text-xs font-bold"
+                                onClick={async () => {
+                                    if (!currentUser) return;
+                                    try {
+                                        // Check if chat already exists
+                                        let existingChat = await getExistingChat(currentUser.uid, member.userId);
+                                        let chatId;
+                                        
+                                        if (existingChat) {
+                                            chatId = existingChat.id;
+                                        } else {
+                                            // Create new chat
+                                            chatId = await createDirectMessageChat(
+                                                currentUser.uid,
+                                                member.userId,
+                                                {
+                                                    name: currentUser.displayName || 'User',
+                                                    avatar: currentUser.photoURL || getGmailAvatar(currentUser.displayName || 'User', currentUser.uid, 150),
+                                                    handle: `@${currentUser.displayName?.toLowerCase().replace(/\s+/g, '') || 'user'}`,
+                                                    uid: currentUser.uid
+                                                },
+                                                {
+                                                    name: member.name || 'User',
+                                                    avatar: member.avatar || member.photoURL || getGmailAvatar(member.name || 'User', member.userId, 150),
+                                                    handle: member.handle || `@${member.name?.toLowerCase().replace(/\s+/g, '') || 'user'}`,
+                                                    uid: member.userId
+                                                }
+                                            );
+                                        }
+                                        
+                                        // Switch to chat tab and open this chat
+                                        setActiveTab('chat');
+                                    } catch (error) {
+                                        console.error('Error initiating chat:', error);
+                                        alert('Failed to start chat. Please try again.');
+                                    }
+                                }}
+                            >
+                                Message
+                            </button>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
             {/* Upcoming Events Banner */}
             <div className="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl p-6 text-white mb-6 shadow-lg">
                 <div className="flex justify-between items-start mb-4">

@@ -169,17 +169,71 @@ const Onboarding = ({ onComplete }: { onComplete: () => void }) => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-cyan-50 flex items-center justify-center p-4">
-      <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl w-full max-w-md p-6 border border-white/20 overflow-hidden relative">
-        <style>{animationStyles}</style>
-        {/* Decorative background elements */}
-        <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400"></div>
-        <div className="absolute -top-10 -right-10 w-40 h-40 bg-gradient-to-br from-amber-200/20 to-orange-200/20 rounded-full blur-xl"></div>
-        <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-gradient-to-br from-blue-200/20 to-emerald-200/20 rounded-full blur-xl"></div>
+    <div className="min-h-screen bg-gradient-to-br from-emerald-100 via-teal-50 to-cyan-100 flex items-center justify-center p-4">
+      <div className="bg-gradient-to-br from-white/80 to-emerald-50/60 backdrop-blur-sm rounded-3xl shadow-2xl w-full max-w-md p-6 border border-white/30 overflow-hidden relative">
+        <style>{`
+          ${animationStyles}
+          
+          @keyframes floatSlow {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-12px); }
+          }
+          
+          @keyframes floatSlower {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-18px); }
+          }
+          
+          .animate-float-slow {
+            animation: floatSlow 6s ease-in-out infinite;
+          }
+          
+          .animate-float-slower {
+            animation: floatSlower 9s ease-in-out infinite;
+          }
+        `}</style>
+        {/* ===== Decorative Background Layer ===== */}
         
-        <div className="text-center mb-8 relative z-10">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2 animate-fade-in-up">Welcome to Travel Community!</h1>
-          <p className="text-gray-600 animate-fade-in-up delay-100">Let's set up your profile so you can connect with fellow travelers.</p>
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          
+          {/* Top accent bar */}
+          <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400" />
+        
+          {/* Large ambient glow */}
+          <div className="absolute -top-24 -right-24 w-72 h-72 bg-gradient-to-br from-emerald-300/30 via-cyan-300/20 to-transparent rounded-full blur-3xl" />
+          <div className="absolute -bottom-24 -left-24 w-72 h-72 bg-gradient-to-tr from-blue-300/30 via-teal-300/20 to-transparent rounded-full blur-3xl" />
+        
+          {/* Floating orbs */}
+          <div className="absolute top-1/3 -left-10 w-24 h-24 bg-emerald-200/40 rounded-full blur-xl animate-float-slow" />
+          <div className="absolute bottom-1/4 -right-12 w-28 h-28 bg-cyan-200/40 rounded-full blur-xl animate-float-slower" />
+        
+          {/* Subtle grid texture */}
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_1px_1px,rgba(0,0,0,0.04)_1px,transparent_0)] bg-[size:24px_24px] opacity-30" />
+        </div>
+        
+        {/* ===== Header Content ===== */}
+        <div className="relative z-10 text-center mb-10">
+          
+          {/* Badge */}
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 mb-4 rounded-full
+                          bg-emerald-500/10 text-emerald-700 text-sm font-medium
+                          backdrop-blur-md border border-emerald-400/20">
+            🌍 Travel Community
+          </div>
+        
+          {/* Heading */}
+          <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight
+                         bg-gradient-to-r from-gray-900 via-emerald-800 to-teal-700
+                         bg-clip-text text-transparent
+                         animate-fade-in-up">
+            Welcome, Explorer
+          </h1>
+        
+          {/* Subtitle */}
+          <p className="mt-3 max-w-md mx-auto text-gray-600 text-sm md:text-base
+                        animate-fade-in-up delay-100">
+            Build your travel identity and connect with people who don’t cancel plans last minute.
+          </p>
         </div>
 
         {/* Progress indicator */}
@@ -222,7 +276,7 @@ const Onboarding = ({ onComplete }: { onComplete: () => void }) => {
                     name="name"
                     value={formData.name}
                     onChange={handleChange}
-                    className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all duration-300 ${errors.name ? 'border-red-500 bg-red-50' : 'border-gray-300 bg-gray-50 focus:bg-white'}`}
+                    className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all duration-300 ${errors.name ? 'border-red-500 bg-red-50' : 'border-emerald-200 bg-white/70 focus:bg-white'}`}
                     required
                   />
                   {errors.name && <p className="text-red-500 text-xs mt-1 flex items-center gap-1"><span className="text-lg">⚠️</span> {errors.name}</p>}
@@ -235,7 +289,7 @@ const Onboarding = ({ onComplete }: { onComplete: () => void }) => {
                     name="handle"
                     value={formData.handle}
                     onChange={handleChange}
-                    className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all duration-300 ${errors.handle ? 'border-red-500 bg-red-50' : 'border-gray-300 bg-gray-50 focus:bg-white'}`}
+                    className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all duration-300 ${errors.handle ? 'border-red-500 bg-red-50' : 'border-emerald-200 bg-white/70 focus:bg-white'}`}
                     required
                   />
                   {errors.handle && <p className="text-red-500 text-xs mt-1 flex items-center gap-1"><span className="text-lg">⚠️</span> {errors.handle}</p>}
@@ -248,7 +302,7 @@ const Onboarding = ({ onComplete }: { onComplete: () => void }) => {
                     value={formData.bio}
                     onChange={handleChange}
                     rows={3}
-                    className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all duration-300 ${errors.bio ? 'border-red-500 bg-red-50' : 'border-gray-300 bg-gray-50 focus:bg-white'}`}
+                    className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all duration-300 ${errors.bio ? 'border-red-500 bg-red-50' : 'border-emerald-200 bg-white/70 focus:bg-white'}`}
                     placeholder="Tell us about yourself..."
                     required
                   />
@@ -270,7 +324,7 @@ const Onboarding = ({ onComplete }: { onComplete: () => void }) => {
                     name="location"
                     value={formData.location}
                     onChange={handleChange}
-                    className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all duration-300 ${errors.location ? 'border-red-500 bg-red-50' : 'border-gray-300 bg-gray-50 focus:bg-white'}`}
+                    className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all duration-300 ${errors.location ? 'border-red-500 bg-red-50' : 'border-emerald-200 bg-white/70 focus:bg-white'}`}
                     placeholder="City, Country"
                     required
                   />
@@ -283,7 +337,7 @@ const Onboarding = ({ onComplete }: { onComplete: () => void }) => {
                     name="travelExperience"
                     value={formData.travelExperience}
                     onChange={handleChange}
-                    className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all duration-300 ${errors.travelExperience ? 'border-red-500 bg-red-50' : 'border-gray-300 bg-gray-50 focus:bg-white'}`}
+                    className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all duration-300 ${errors.travelExperience ? 'border-red-500 bg-red-50' : 'border-emerald-200 bg-white/70 focus:bg-white'}`}
                     required
                   >
                     <option value="">Select your experience level</option>
@@ -312,8 +366,8 @@ const Onboarding = ({ onComplete }: { onComplete: () => void }) => {
                     className={`py-3 px-4 rounded-xl border text-sm font-medium transition-all duration-300 hover-lift ${
                       selectedInterests.includes(interest)
                         ? 'bg-gradient-to-r from-emerald-500 to-teal-500 border-emerald-500 text-white shadow-md'
-                        : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
-                    }`}
+                        : 'bg-gradient-to-br from-white/70 to-emerald-50/40 border-emerald-200 text-gray-700 hover:from-white/90 hover:to-emerald-100/60'}`}
+                    
                   >
                     {interest}
                   </button>

@@ -79,8 +79,12 @@ const ChatView = () => {
     const [showGroupMembers, setShowGroupMembers] = useState(false);
     const [availableMembers, setAvailableMembers] = useState<any[]>([]);
     const [showTripSelector, setShowTripSelector] = useState(false);
+    const [showNewChatModal, setShowNewChatModal] = useState(false);
     const [userTrips, setUserTrips] = useState<any[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
+    const [allUsers, setAllUsers] = useState<any[]>([]);
+    const [recentContacts, setRecentContacts] = useState<any[]>([]);
+    const [communityMembers, setCommunityMembers] = useState<any[]>([]);
   const notificationSoundRef = useRef<HTMLAudioElement | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -104,6 +108,103 @@ const ChatView = () => {
     }
   }, [currentUser]);
   
+  // Fetch all users from Firestore
+  useEffect(() => {
+    const unsubscribe = subscribeToCollection('users', (usersData) => {
+      setAllUsers(usersData);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  // Get recent contacts based on recent chats
+  useEffect(() => {
+    if (currentUser && chats.length > 0) {
+      // Get participant IDs from recent chats
+      const recentParticipantIds = [];
+      chats.forEach(chat => {
+        if (!chat.isGroup) {
+          // For direct messages, find the other participant
+          const otherParticipant = Object.values(chat.participantData).find((p: any) => p.uid !== currentUser.uid);
+          if (otherParticipant && !recentParticipantIds.includes(otherParticipant.uid)) {
+            recentParticipantIds.push(otherParticipant.uid);
+          }
+        }
+      });
+      
+      // Get user details for recent contacts
+      const recentUsers = allUsers.filter(user => recentParticipantIds.includes(user.uid));
+      setRecentContacts(recentUsers);
+    }
+  }, [chats, currentUser, allUsers]);
+
+  // Get community members for the current user
+  useEffect(() => {
+    if (currentUser) {
+      // Clear previous community members when user changes
+      setCommunityMembers([]);
+      
+      // Find all communities the user is part of by looking at their membership
+      // This should query the user's community memberships from a 'userCommunities' collection or similar
+      const unsubscribe = subscribeToCollection(`userCommunities/${currentUser.uid}/communities`, (userCommunityData) => {
+        const userCommunityIds = userCommunityData.map((community: any) => community.communityId);
+        
+        if (userCommunityIds.length === 0) {
+          // If no communities, set to empty array
+          setCommunityMembers([]);
+          return;
+        }
+        
+        // For each community, fetch its members
+        const unsubs: any[] = [];
+        let allMembers: any[] = [];
+        
+        userCommunityIds.forEach(communityId => {
+          const unsubscribe = subscribeToCollection(`communities/${communityId}/members`, (membersData) => {
+            // Add members from this community to the allMembers array
+            // Filter out the current user and the community creator (admin)
+            const newMembers = membersData.filter(newMember => 
+              !allMembers.some(prevMember => prevMember.userId === newMember.userId) &&
+              newMember.userId !== currentUser.uid // Don't include current user
+            );
+            
+            allMembers = [...allMembers, ...newMembers];
+            
+            // Separate admins and regular members, excluding the current user
+            const admins = allMembers.filter(member => 
+              (member.role === 'admin' || member.isAdmin === true) &&
+              member.userId !== currentUser.uid // Ensure current user is not included
+            ).filter(member => member.userId !== currentUser.uid); // Double check to exclude current user
+            
+            const regularMembers = allMembers.filter(member => 
+              member.role !== 'admin' && member.isAdmin !== true &&
+              member.userId !== currentUser.uid // Ensure current user is not included
+            );
+            
+            // Combine with admins first, then regular members
+            setCommunityMembers([...admins, ...regularMembers]);
+          });
+          unsubs.push(unsubscribe);
+        });
+        
+        // Cleanup function for community member subscriptions
+        return () => {
+          unsubs.forEach(unsub => {
+            if (unsub) unsub();
+          });
+        };
+      });
+      
+      // Cleanup function for user community subscription
+      return () => {
+        unsubscribe();
+      };
+    } else {
+      // If no currentUser, clear community members
+      setCommunityMembers([]);
+    }
+  }, [currentUser]);
+
   // Filter chats based on search query and hidden chats
   useEffect(() => {
     if (!searchQuery.trim()) {
@@ -330,9 +431,9 @@ const ChatView = () => {
   }, [currentUser]);
 
   return (
-    <div className="h-[calc(100vh-80px)] md:h-screen flex bg-white md:border-l border-gray-200">
+    <div className="h-[calc(100vh-80px)] md:h-screen flex bg-gradient-to-br from-white to-emerald-50 md:border-l border-emerald-200">
       {/* Chat List */}
-      <div className={`${selectedChat ? 'hidden md:flex' : 'flex'} flex-col w-full md:w-72 border-r border-gray-200`}>
+      <div className={`${selectedChat ? 'hidden md:flex' : 'flex'} flex-col w-full md:w-72 border-r border-emerald-200 bg-gradient-to-b from-white to-emerald-50`}>
         <div className="p-3 border-b border-gray-100 flex justify-between items-center">
           <div className="font-bold text-base">Messages</div>
           <button className="text-emerald-600"><Edit3 className="w-4 h-4" /></button>
@@ -340,7 +441,7 @@ const ChatView = () => {
 
         {/* Search */}
         <div className="p-3">
-          <div className="bg-gray-100 rounded-lg flex items-center px-3 py-2">
+          <div className="bg-gradient-to-r from-gray-100 to-emerald-100 rounded-lg flex items-center px-3 py-2 border border-emerald-200">
             <Search className="w-4 h-4 text-gray-400 mr-2" />
             <input 
               type="text" 
@@ -514,7 +615,7 @@ const ChatView = () => {
       {selectedChat ? (
         <div className="flex-1 flex flex-col h-full">
           {/* Header */}
-          <div className="p-3 border-b border-gray-100 flex items-center justify-between">
+          <div className="p-3 border-b border-emerald-200 bg-gradient-to-r from-white to-emerald-50 flex items-center justify-between">
             <div className="flex items-center gap-2.5">
               <button className="md:hidden" onClick={() => setSelectedChat(null)}>
                 <div className="text-xl mr-1.5">‹</div>
@@ -573,7 +674,7 @@ const ChatView = () => {
           </div>
 
           {/* Messages */}
-          <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50" style={{ maxHeight: 'calc(100vh - 200px)' }}>
+          <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 space-y-4 bg-gradient-to-br from-emerald-50/50 via-cyan-50/30 to-teal-50/50" style={{ maxHeight: 'calc(100vh-200px)' }}>
             {/* Typing Indicator */}
             {/* Typing indicator would go here when we implement typing functionality */}
 
@@ -604,23 +705,23 @@ const ChatView = () => {
                     {/* Message Bubble */}
                     <div
                       className={`px-4 py-2 rounded-2xl text-sm ${msg.senderId === currentUser?.uid
-                              ? 'bg-emerald-500 text-white rounded-br-none'
-                              : 'bg-white border border-gray-200 text-gray-800 rounded-bl-none'
+                              ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-br-none shadow-md'
+                              : 'bg-gradient-to-r from-white to-emerald-50 border border-emerald-100 text-gray-800 rounded-bl-none shadow-sm'
                           }`}
                     >
                       {/* Check if this is a trip message */}
                       {msg.tripData ? (
                         // Trip message format
-                        <div className="flex items-center gap-3 p-3 bg-emerald-50 rounded-lg border border-emerald-100">
-                          <div className="bg-emerald-100 text-emerald-600 w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <div className="flex items-center gap-3 p-3 bg-gradient-to-r from-cyan-50 to-emerald-50 rounded-lg border border-cyan-200 shadow-sm">
+                          <div className="bg-gradient-to-r from-cyan-400 to-teal-500 text-white w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm">
                             <Plane className="w-5 h-5" />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <h4 className="font-bold text-emerald-900 truncate">{msg.tripData.tripName || 'Trip Plan'}</h4>
-                            <p className="text-sm text-emerald-700 truncate">
+                            <h4 className="font-bold text-gray-900 truncate">{msg.tripData.tripName || 'Trip Plan'}</h4>
+                            <p className="text-sm text-gray-700 truncate">
                               {msg.tripData.destination || 'Destination not specified'}
                             </p>
-                            <div className="flex items-center text-xs text-emerald-600 mt-1">
+                            <div className="flex items-center text-xs text-gray-600 mt-1">
                               <span>
                                 {msg.tripData.startDate ? new Date(msg.tripData.startDate).toLocaleDateString() : 'Date not set'}
                               </span>
@@ -632,7 +733,7 @@ const ChatView = () => {
                             </div>
                           </div>
                           <button 
-                            className="text-emerald-600 hover:text-emerald-800 font-medium text-sm flex-shrink-0"
+                            className="text-teal-600 hover:text-teal-800 font-medium text-sm flex-shrink-0"
                             onClick={() => {
                               // In a real app, you would navigate to view the trip details
                               console.log('View trip details:', msg.tripData);
@@ -666,9 +767,9 @@ const ChatView = () => {
                   {messageReactions[msg.id] && (
                     <div className="flex flex-wrap gap-1 mt-1">
                       {Object.entries(messageReactions[msg.id]).map(([emoji, users]) => (
-                        <div key={emoji} className="flex items-center bg-white border border-gray-200 rounded-full px-2 py-1 text-xs">
+                        <div key={emoji} className="flex items-center bg-gradient-to-r from-emerald-100 to-cyan-100 border border-emerald-200 rounded-full px-2 py-1 text-xs shadow-sm">
                           <span>{emoji}</span>
-                          <span className="ml-1 text-gray-500">{users.length}</span>
+                          <span className="ml-1 text-gray-600">{users.length}</span>
                         </div>
                       ))}
                     </div>
@@ -699,7 +800,7 @@ const ChatView = () => {
                       onClick={() => setShowMessageMenu(null)}
                     >
                       <div
-                        className="absolute bg-white border border-gray-200 rounded-lg shadow-lg z-50"
+                        className="absolute bg-gradient-to-b from-white to-emerald-50 border border-emerald-200 rounded-lg shadow-xl z-50"
                         style={{ top: showMessageMenu.y, left: showMessageMenu.x }}
                         onClick={(e) => e.stopPropagation()}
                       >
@@ -787,7 +888,7 @@ const ChatView = () => {
           )}
 
           {/* Input */}
-          <div className="p-3 bg-white border-t border-gray-100 flex items-center gap-2.5">
+          <div className="p-3 bg-gradient-to-r from-white to-emerald-50 border-t border-emerald-200 flex items-center gap-2.5">
             <button className="text-gray-400 hover:text-gray-600" onClick={() => {
               const fileInput = document.createElement('input');
               fileInput.type = 'file';
@@ -822,7 +923,7 @@ const ChatView = () => {
             }}>
               <ImageIcon className="w-5 h-5" />
             </button>
-            <div className="flex-1 bg-gray-100 rounded-full px-3 py-1.5 flex items-center">
+            <div className="flex-1 bg-gradient-to-r from-gray-100 to-emerald-100 rounded-full px-3 py-1.5 flex items-center">
               <input
                 type="text"
                 className="bg-transparent flex-1 outline-none text-sm"
@@ -854,7 +955,7 @@ const ChatView = () => {
                       }}
                       onClick={(e) => e.stopPropagation()}
                     >
-                      <div className="flex justify-between items-center bg-gray-50 px-3 py-2 border-b border-gray-200">
+                      <div className="flex justify-between items-center bg-gradient-to-r from-gray-50 to-emerald-50 px-3 py-2 border-b border-emerald-200">
                         <span className="text-sm font-medium text-gray-700">Emoji Picker</span>
                         <button 
                           onClick={() => setShowEmojiPicker(false)}
@@ -920,8 +1021,8 @@ const ChatView = () => {
           <p className="text-sm">Send private photos and messages to a friend or group.</p>
 
           <div className="mt-8 flex gap-4">
-            <button className="bg-emerald-500 text-white px-6 py-2 rounded-lg font-bold shadow-md hover:bg-emerald-600 transition-colors">
-              Send Message
+            <button className="bg-gradient-to-r from-emerald-500 to-teal-500 text-white px-6 py-2 rounded-lg font-bold shadow-md hover:from-emerald-600 hover:to-teal-600 transition-all duration-200" onClick={() => setShowNewChatModal(true)}>
+              New Chat
             </button>
             <button className="bg-white border border-gray-300 text-gray-600 px-6 py-2 rounded-lg font-bold hover:bg-gray-50 transition-colors" onClick={() => setShowTripSelector(true)}>
               Plan a Trip
@@ -946,14 +1047,14 @@ const ChatView = () => {
 
             <div className="p-6 max-h-[60vh] overflow-y-auto">
               <div className="mb-6">
-                <h4 className="font-bold text-gray-900 mb-3">Current Members</h4>
+                <h4 className="font-bold text-gray-900 mb-3 bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">Current Members</h4>
                 <div className="space-y-3">
                   {selectedChat.participants.map((participantId: string) => {
                     const participant = selectedChat.participantData[participantId];
                     if (!participant) return null;
                     
                     return (
-                      <div key={participantId} className="flex items-center justify-between p-3 rounded-lg border border-gray-200">
+                      <div key={participantId} className="flex items-center justify-between p-3 rounded-lg border border-emerald-200 bg-gradient-to-r from-white to-emerald-50 shadow-sm">
                         <div className="flex items-center gap-3">
                           <img 
                             src={participant.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(participant.name.substring(0, 2).toUpperCase())}&size=150&background=random&color=ffffff`} 
@@ -979,7 +1080,7 @@ const ChatView = () => {
                   <h4 className="font-bold text-gray-900 mb-3">Add Members</h4>
                   <div className="space-y-3">
                     {availableMembers.map((member: any) => (
-                      <div key={member.id} className="flex items-center justify-between p-3 rounded-lg border border-gray-200">
+                      <div key={member.id} className="flex items-center justify-between p-3 rounded-lg border border-emerald-200 bg-gradient-to-r from-white to-emerald-50 shadow-sm">
                         <div className="flex items-center gap-3">
                           <img 
                             src={member.avatar || member.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent((member.name || 'U').substring(0, 2).toUpperCase())}&size=150&background=random&color=ffffff`} 
@@ -1038,10 +1139,10 @@ const ChatView = () => {
       
       {/* Trip Selector Modal */}
       {showTripSelector && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl w-full max-w-2xl my-8">
-            <div className="flex justify-between items-center p-6 border-b border-gray-100">
-              <h3 className="font-bold text-xl text-gray-900">Share a Trip</h3>
+        <div className="fixed inset-0 bg-gradient-to-br from-emerald-900/30 to-teal-900/30 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-gradient-to-b from-white to-emerald-50 rounded-2xl w-full max-w-2xl my-8 shadow-2xl border border-emerald-100">
+            <div className="flex justify-between items-center p-6 border-b border-emerald-200 bg-gradient-to-r from-white to-emerald-50">
+              <h3 className="font-bold text-xl text-gray-900 bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">Share a Trip</h3>
               <button
                 onClick={() => setShowTripSelector(false)}
                 className="text-gray-400 hover:text-gray-600"
@@ -1053,8 +1154,8 @@ const ChatView = () => {
             <div className="p-6 max-h-[60vh] overflow-y-auto">
               {userTrips.length === 0 ? (
                 <div className="text-center py-8">
-                  <Plane className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                  <h4 className="font-bold text-gray-900 mb-2">No trips yet</h4>
+                  <Plane className="w-12 h-12 text-emerald-400 mx-auto mb-4" />
+                  <h4 className="font-bold text-gray-900 mb-2 bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">No trips yet</h4>
                   <p className="text-gray-500 mb-4">Create a trip to share with your friends.</p>
                   <button 
                     onClick={() => {
@@ -1063,7 +1164,7 @@ const ChatView = () => {
                       setShowTripSelector(false);
                       // You could add navigation here if needed
                     }}
-                    className="bg-emerald-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-emerald-600"
+                    className="bg-gradient-to-r from-emerald-500 to-teal-500 text-white px-4 py-2 rounded-lg font-medium hover:from-emerald-600 hover:to-teal-600 shadow-md"
                   >
                     Create a Trip
                   </button>
@@ -1074,11 +1175,11 @@ const ChatView = () => {
                   {userTrips.map((trip: any) => (
                     <div 
                       key={trip.id} 
-                      className="flex items-center justify-between p-3 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer"
+                      className="flex items-center justify-between p-3 rounded-lg border border-emerald-200 hover:bg-gradient-to-r hover:from-emerald-50 hover:to-cyan-50 cursor-pointer shadow-sm transition-all duration-200"
                       onClick={() => handleSendTrip(trip)}
                     >
                       <div className="flex items-center gap-3">
-                        <div className="bg-emerald-100 text-emerald-600 w-10 h-10 rounded-lg flex items-center justify-center">
+                        <div className="bg-gradient-to-r from-cyan-400 to-teal-500 text-white w-10 h-10 rounded-lg flex items-center justify-center shadow-sm">
                           <Plane className="w-5 h-5" />
                         </div>
                         <div>
@@ -1089,11 +1190,262 @@ const ChatView = () => {
                           </p>
                         </div>
                       </div>
-                      <div className="text-sm font-medium text-emerald-600">Share</div>
+                      <div className="text-sm font-medium text-teal-600">Share</div>
                     </div>
                   ))}
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+      {/* New Chat Modal */}
+      {showNewChatModal && (
+        <div className="fixed inset-0 bg-gradient-to-br from-emerald-900/30 to-teal-900/30 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-gradient-to-b from-white to-emerald-50 rounded-2xl w-full max-w-2xl my-8 shadow-2xl border border-emerald-100">
+            <div className="flex justify-between items-center p-6 border-b border-emerald-200 bg-gradient-to-r from-white to-emerald-50">
+              <h3 className="font-bold text-xl text-gray-900 bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">New Message</h3>
+              <button
+                onClick={() => setShowNewChatModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-6">
+              <div className="mb-4">
+                <div className="bg-gradient-to-r from-gray-100 to-emerald-100 rounded-lg flex items-center px-3 py-2 border border-emerald-200 mb-4">
+                  <Search className="w-4 h-4 text-gray-400 mr-2" />
+                  <input 
+                    type="text" 
+                    placeholder="Search contacts..." 
+                    className="bg-transparent outline-none text-sm w-full" 
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                </div>
+                
+                {/* Search Results */}
+                {searchQuery && (
+                  <div className="mb-4">
+                    <div className="text-sm text-gray-500 mb-2">Search Results</div>
+                    <div className="space-y-2 max-h-60 overflow-y-auto">
+                      {allUsers
+                        .filter(user => 
+                          user.uid !== currentUser?.uid && // Don't show current user
+                          (user.name?.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                           user.handle?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                           user.email?.toLowerCase().includes(searchQuery.toLowerCase()))
+                        )
+                        .map((user) => (
+                          <div 
+                            key={user.uid} 
+                            className="flex items-center justify-between p-3 rounded-lg border border-emerald-200 hover:bg-gradient-to-r hover:from-emerald-50 hover:to-cyan-50 cursor-pointer shadow-sm transition-all duration-200"
+                            onClick={async () => {
+                              // Check if chat already exists
+                              let existingChat = await getExistingChat(currentUser.uid, user.uid);
+                              let chatId;
+
+                              if (existingChat) {
+                                chatId = existingChat.id;
+                              } else {
+                                // Create new chat
+                                chatId = await createDirectMessageChat(
+                                  currentUser.uid,
+                                  user.uid,
+                                  currentUser,
+                                  user
+                                );
+                              }
+
+                              // Switch to chat tab and open this chat
+                              setSelectedChat(chats.find(chat => chat.id === chatId));
+                              setShowNewChatModal(false);
+                            }}
+                          >
+                            <div className="flex items-center gap-3">
+                              <img 
+                                src={user.avatar || user.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent((user.name || user.displayName || 'U').substring(0, 2).toUpperCase())}&size=150&background=random&color=ffffff`} 
+                                className="w-10 h-10 rounded-full object-cover" 
+                                alt={user.name || user.displayName || 'User'} 
+                                onError={(e) => {
+                                  const target = e.target as HTMLImageElement;
+                                  target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent((user.name || user.displayName || 'U').substring(0, 2).toUpperCase())}&size=150&background=random&color=ffffff`;
+                                }}
+                              />
+                              <div>
+                                <h4 className="font-bold text-gray-900">{user.name || user.displayName || 'User'}</h4>
+                                <p className="text-sm text-gray-500">{user.handle || user.email || `@${user.uid.substring(0, 8)}`}</p>
+                              </div>
+                            </div>
+                            <button className="text-emerald-600 hover:text-emerald-800 font-medium text-sm">Message</button>
+                          </div>
+                        ))
+                      }
+                      {allUsers.filter(user => 
+                        user.uid !== currentUser?.uid &&
+                        (user.name?.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                         user.handle?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         user.email?.toLowerCase().includes(searchQuery.toLowerCase()))
+                      ).length === 0 && (
+                        <div className="text-center py-4 text-gray-500 text-sm">
+                          No users found
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+              
+              <div className="text-sm text-gray-500 mb-2">Recent Contacts</div>
+              <div className="space-y-2">
+                {searchQuery ? (
+                  // Don't show recent contacts when searching
+                  <div className="text-center py-4 text-gray-500 text-sm text-transparent">
+                    &nbsp;
+                  </div>
+                ) : (
+                  <>
+                    {recentContacts
+                      .filter(user => user.uid !== currentUser?.uid) // Don't show current user
+                      .map((user) => (
+                        <div 
+                          key={user.uid} 
+                          className="flex items-center justify-between p-3 rounded-lg border border-emerald-200 hover:bg-gradient-to-r hover:from-emerald-50 hover:to-cyan-50 cursor-pointer shadow-sm transition-all duration-200"
+                          onClick={async () => {
+                            // Check if chat already exists
+                            let existingChat = await getExistingChat(currentUser.uid, user.uid);
+                            let chatId;
+
+                            if (existingChat) {
+                              chatId = existingChat.id;
+                            } else {
+                              // Create new chat
+                              chatId = await createDirectMessageChat(
+                                currentUser.uid,
+                                user.uid,
+                                currentUser,
+                                user
+                              );
+                            }
+
+                            // Switch to chat tab and open this chat
+                            setSelectedChat(chats.find(chat => chat.id === chatId));
+                            setShowNewChatModal(false);
+                          }}
+                        >
+                          <div className="flex items-center gap-3">
+                            <img 
+                              src={user.avatar || user.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent((user.name || user.displayName || 'U').substring(0, 2).toUpperCase())}&size=150&background=random&color=ffffff`} 
+                              className="w-10 h-10 rounded-full object-cover" 
+                              alt={user.name || user.displayName || 'User'} 
+                              onError={(e) => {
+                                const target = e.target as HTMLImageElement;
+                                target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent((user.name || user.displayName || 'U').substring(0, 2).toUpperCase())}&size=150&background=random&color=ffffff`;
+                              }}
+                            />
+                            <div>
+                              <h4 className="font-bold text-gray-900">{user.name || user.displayName || 'User'}</h4>
+                              <p className="text-sm text-gray-500">{user.handle || user.email || `@${user.uid.substring(0, 8)}`}</p>
+                            </div>
+                          </div>
+                          <button className="text-emerald-600 hover:text-emerald-800 font-medium text-sm">Message</button>
+                        </div>
+                      ))
+                    }
+                    {recentContacts.filter(user => user.uid !== currentUser?.uid).length === 0 && (
+                      <div className="text-center py-4 text-gray-500 text-sm">
+                        No recent contacts
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+              
+              <div className="mt-6 text-sm text-gray-500 mb-2">Community Members</div>
+              <div className="space-y-2">
+                {searchQuery ? (
+                  // Don't show community members when searching
+                  <div className="text-center py-4 text-gray-500 text-sm text-transparent">
+                    &nbsp;
+                  </div>
+                ) : (
+                  <>
+                    {communityMembers
+                      .filter(member => member.userId !== currentUser?.uid) // Don't show current user
+                      .sort((a, b) => {
+                        // Sort: admins first, then regular members, both alphabetically
+                        const aIsAdmin = (a.role === 'admin' || a.isAdmin === true) ? 1 : 0;
+                        const bIsAdmin = (b.role === 'admin' || b.isAdmin === true) ? 1 : 0;
+                        if (bIsAdmin !== aIsAdmin) {
+                          return bIsAdmin - aIsAdmin; // Admins first
+                        }
+                        // If both are the same type (admin or not), sort alphabetically by name
+                        return (a.name || '').localeCompare(b.name || '');
+                      })
+                      .map((member) => (
+                        <div 
+                          key={member.id || member.userId} 
+                          className="flex items-center justify-between p-3 rounded-lg border border-emerald-200 hover:bg-gradient-to-r hover:from-emerald-50 hover:to-cyan-50 cursor-pointer shadow-sm transition-all duration-200"
+                          onClick={async () => {
+                            // Check if chat already exists
+                            let existingChat = await getExistingChat(currentUser.uid, member.userId);
+                            let chatId;
+
+                            if (existingChat) {
+                              chatId = existingChat.id;
+                            } else {
+                              // Create new chat
+                              chatId = await createDirectMessageChat(
+                                currentUser.uid,
+                                member.userId,
+                                currentUser,
+                                {
+                                  name: member.name || 'User',
+                                  avatar: member.avatar || member.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent((member.name || 'U').substring(0, 2).toUpperCase())}&size=150&background=random&color=ffffff`,
+                                  handle: member.handle || `@${member.userId.substring(0, 8)}`,
+                                  uid: member.userId
+                                }
+                              );
+                            }
+
+                            // Switch to chat tab and open this chat
+                            setSelectedChat(chats.find(chat => chat.id === chatId));
+                            setShowNewChatModal(false);
+                          }}
+                        >
+                          <div className="flex items-center gap-3">
+                            <img 
+                              src={member.avatar || member.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent((member.name || 'U').substring(0, 2).toUpperCase())}&size=150&background=random&color=ffffff`} 
+                              className="w-10 h-10 rounded-full object-cover" 
+                              alt={member.name || 'User'} 
+                              onError={(e) => {
+                                const target = e.target as HTMLImageElement;
+                                target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent((member.name || 'U').substring(0, 2).toUpperCase())}&size=150&background=random&color=ffffff`;
+                              }}
+                            />
+                            <div>
+                              <h4 className="font-bold text-gray-900">{member.name || 'User'}</h4>
+                              {member.role === 'admin' || member.isAdmin === true ? (
+                                <p className="text-xs text-emerald-600 font-medium">Admin</p>
+                              ) : (
+                                <p className="text-sm text-gray-500">{member.handle || `@${member.userId.substring(0, 8)}`}</p>
+                              )}
+                            </div>
+                          </div>
+                          <button className="text-emerald-600 hover:text-emerald-800 font-medium text-sm">Message</button>
+                        </div>
+                      ))
+                    }
+                    {communityMembers.filter(member => member.userId !== currentUser?.uid).length === 0 && (
+                      <div className="text-center py-4 text-gray-500 text-sm">
+                        No community members
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
             </div>
           </div>
         </div>
