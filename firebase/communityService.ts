@@ -45,7 +45,7 @@ export const createCommunity = async (communityData: Omit<Community, 'id' | 'cre
       ...communityData,
       id: communityRef.id,
       createdAt: serverTimestamp(),
-      memberCount: 1
+      memberCount: 0
     };
     
     console.log('Setting community document:', newCommunity);

@@ -859,10 +859,7 @@ const FeedView = ({ posts, toggleLike, setSelectedUser, allUsers, currentUser, s
                             <div className="flex-1 min-w-0">
                                 <h4 className="font-bold text-sm text-gray-900 truncate">{community.name}</h4>
                                 <p className="text-xs text-gray-500 truncate">{community.description}</p>
-                                <div className="flex items-center text-xs text-gray-400 mt-1">
-                                    <Users className="w-3 h-3 mr-1" />
-                                    {community.memberCount?.toLocaleString() || 0} members
-                                </div>
+
                             </div>
                             <div className="flex gap-1">
                                 {/* Show Join button only for non-creators who are not members */}
@@ -1530,10 +1527,7 @@ const CommunityDetailView = ({ community, members, currentUser, onBack, onJoin, 
                             <p className="text-emerald-100 text-lg mb-6 leading-relaxed">{community.description}</p>
                             
                             <div className="flex flex-wrap items-center gap-6 mb-6">
-                                <div className="flex items-center gap-2 bg-white/20 px-4 py-2 rounded-full">
-                                    <Users className="w-5 h-5" />
-                                    <span className="font-medium">{community.memberCount?.toLocaleString() || 0} members</span>
-                                </div>
+
                                 <div className="flex items-center gap-2 bg-white/20 px-4 py-2 rounded-full">
                                     <div className="w-3 h-3 bg-green-400 rounded-full"></div>
                                     <span className="font-medium">{onlineMembers} online now</span>

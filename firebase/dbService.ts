@@ -176,7 +176,7 @@ export const createCommunity = async (communityData: any) => {
       ...communityData as DocumentData,
       id: docRef.id,
       createdAt: serverTimestamp(),
-      memberCount: 1
+      memberCount: 0
     });
     return docRef.id;
   } catch (error) {
@@ -210,15 +210,16 @@ export const joinCommunity = async (communityId: string, userId: string, userAut
       return userId;
     });
     
-    // Update community member count separately after successful membership creation
+    // Update community member count atomically using a transaction
     try {
       const communityRef = doc(db, 'communities', communityId);
-      const communityDoc = await getDoc(communityRef);
-      if (communityDoc.exists()) {
-        const communityDocData = communityDoc.data() as DocumentData;
-          const currentCount = communityDocData.memberCount || 0;
-        await updateDoc(communityRef, { memberCount: currentCount + 1 });
-      }
+      await runTransaction(db, async (transaction) => {
+        const communityDoc = await transaction.get(communityRef);
+        if (communityDoc.exists()) {
+          const currentCount = communityDoc.data().memberCount || 0;
+          transaction.update(communityRef, { memberCount: currentCount + 1 });
+        }
+      });
     } catch (countError) {
       console.error('Error updating member count (membership still created):', countError);
       // Don't throw this error as the main membership was created successfully
@@ -265,16 +266,16 @@ export const leaveCommunity = async (communityId: string, userId: string) => {
     // Remove the user from the community members first
     await deleteDoc(doc(collection(db, 'communities', communityId, 'members'), userId));
     
-    // Update community member count separately - this might fail if user is not the creator
-    // but the membership removal is the critical operation
+    // Update community member count atomically using a transaction
     try {
       const communityRef = doc(db, 'communities', communityId);
-      const communityDoc = await getDoc(communityRef);
-      if (communityDoc.exists()) {
-        const communityDocData = communityDoc.data() as DocumentData;
-        const currentCount = communityDocData.memberCount || 1;
-        await updateDoc(communityRef, { memberCount: Math.max(0, currentCount - 1) });
-      }
+      await runTransaction(db, async (transaction) => {
+        const communityDoc = await transaction.get(communityRef);
+        if (communityDoc.exists()) {
+          const currentCount = communityDoc.data().memberCount || 1;
+          transaction.update(communityRef, { memberCount: Math.max(0, currentCount - 1) });
+        }
+      });
     } catch (countError) {
       console.error('Error updating member count after leaving (membership still removed):', countError);
       // Don't throw this error as the main membership removal was successful
@@ -445,14 +446,15 @@ export const removeCommunityMember = async (communityId: string, memberId: strin
   try {
     await deleteDoc(doc(db, 'communities', communityId, 'members', memberId));
     
-    // Update community member count
+    // Update community member count atomically using a transaction
     const communityRef = doc(db, 'communities', communityId);
-    const communityDoc = await getDoc(communityRef);
-    if (communityDoc.exists()) {
-      const communityDocData = communityDoc.data() as DocumentData;
-      const currentCount = communityDocData.memberCount || 1;
-      await updateDoc(communityRef, { memberCount: Math.max(0, currentCount - 1) });
-    }
+    await runTransaction(db, async (transaction) => {
+      const communityDoc = await transaction.get(communityRef);
+      if (communityDoc.exists()) {
+        const currentCount = communityDoc.data().memberCount || 1;
+        transaction.update(communityRef, { memberCount: Math.max(0, currentCount - 1) });
+      }
+    });
     
     return memberId;
   } catch (error) {

@@ -19,7 +19,7 @@ export const addTrip = async (trip: Omit<SavedTrip, 'id'>) => {
 export const joinTrip = async (tripId: string, userId: string) => {
   try {
     // Get the current trip
-    const trip = await getDocument(TRIPS_COLLECTION, tripId);
+    const trip = await getDocument(TRIPS_COLLECTION, tripId) as SavedTrip | null;
     if (!trip) {
       throw new Error('Trip not found');
     }

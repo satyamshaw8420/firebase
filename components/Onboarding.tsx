@@ -169,19 +169,48 @@ const Onboarding = ({ onComplete }: { onComplete: () => void }) => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-100 via-teal-50 to-cyan-100 flex items-center justify-center p-4">
-      <div className="bg-gradient-to-br from-white/80 to-emerald-50/60 backdrop-blur-sm rounded-3xl shadow-2xl w-full max-w-md p-6 border border-white/30 overflow-hidden relative">
+    <div className="min-h-screen bg-gradient-to-br from-emerald-800 via-teal-100 to-cyan-200 flex items-center justify-center p-4">
+      <div className="bg-gradient-to-br from-white/90 to-emerald-100/70 backdrop-blur-sm rounded-3xl shadow-2xl w-full max-w-md p-6 border border-white/40 overflow-hidden relative">
         <style>{`
           ${animationStyles}
           
           @keyframes floatSlow {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-12px); }
+            0%, 100% { transform: translateY(0) translateX(0); }
+            25% { transform: translateY(-12px) translateX(5px); }
+            50% { transform: translateY(-8px) translateX(-5px); }
+            75% { transform: translateY(-15px) translateX(3px); }
           }
           
           @keyframes floatSlower {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-18px); }
+            0%, 100% { transform: translateY(0) translateX(0); }
+            25% { transform: translateY(-18px) translateX(-8px); }
+            50% { transform: translateY(-10px) translateX(10px); }
+            75% { transform: translateY(-20px) translateX(-5px); }
+          }
+          
+          @keyframes floatRandom {
+            0% { transform: translateY(0) translateX(0) rotate(0deg); }
+            25% { transform: translateY(-15px) translateX(10px) rotate(5deg); }
+            50% { transform: translateY(-5px) translateX(-10px) rotate(-5deg); }
+            75% { transform: translateY(-20px) translateX(5px) rotate(3deg); }
+            100% { transform: translateY(0) translateX(0) rotate(0deg); }
+          }
+          
+          @keyframes floatRandom2 {
+            0% { transform: translateY(0) translateX(0) rotate(0deg); }
+            20% { transform: translateY(-10px) translateX(-8px) rotate(-3deg); }
+            40% { transform: translateY(-18px) translateX(12px) rotate(7deg); }
+            60% { transform: translateY(5px) translateX(-15px) rotate(-5deg); }
+            80% { transform: translateY(-12px) translateX(7px) rotate(4deg); }
+            100% { transform: translateY(0) translateX(0) rotate(0deg); }
+          }
+          
+          @keyframes floatRandom3 {
+            0% { transform: translateY(0) translateX(0) rotate(0deg); }
+            30% { transform: translateY(-20px) translateX(15px) rotate(6deg); }
+            50% { transform: translateY(8px) translateX(-10px) rotate(-4deg); }
+            70% { transform: translateY(-5px) translateX(12px) rotate(5deg); }
+            100% { transform: translateY(0) translateX(0) rotate(0deg); }
           }
           
           .animate-float-slow {
@@ -191,21 +220,34 @@ const Onboarding = ({ onComplete }: { onComplete: () => void }) => {
           .animate-float-slower {
             animation: floatSlower 9s ease-in-out infinite;
           }
+          
+          .animate-float-random {
+            animation: floatRandom 8s ease-in-out infinite;
+          }
+          
+          .animate-float-random2 {
+            animation: floatRandom2 10s ease-in-out infinite;
+          }
+          
+          .animate-float-random3 {
+            animation: floatRandom3 7s ease-in-out infinite;
+          }
         `}</style>
         {/* ===== Decorative Background Layer ===== */}
         
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           
           {/* Top accent bar */}
-          <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400" />
+          <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500" />
         
           {/* Large ambient glow */}
-          <div className="absolute -top-24 -right-24 w-72 h-72 bg-gradient-to-br from-emerald-300/30 via-cyan-300/20 to-transparent rounded-full blur-3xl" />
-          <div className="absolute -bottom-24 -left-24 w-72 h-72 bg-gradient-to-tr from-blue-300/30 via-teal-300/20 to-transparent rounded-full blur-3xl" />
+          <div className="absolute -top-24 -right-24 w-72 h-72 bg-gradient-to-br from-emerald-400/40 via-cyan-400/30 to-transparent rounded-full blur-3xl" />
+          <div className="absolute -bottom-24 -left-24 w-72 h-72 bg-gradient-to-tr from-blue-400/40 via-teal-400/30 to-transparent rounded-full blur-3xl" />
         
           {/* Floating orbs */}
-          <div className="absolute top-1/3 -left-10 w-24 h-24 bg-emerald-200/40 rounded-full blur-xl animate-float-slow" />
-          <div className="absolute bottom-1/4 -right-12 w-28 h-28 bg-cyan-200/40 rounded-full blur-xl animate-float-slower" />
+          <div className="absolute top-1/3 -left-10 w-24 h-24 bg-emerald-400/50 rounded-full blur-xl animate-float-random" />
+          <div className="absolute bottom-1/4 -right-12 w-28 h-28 bg-cyan-300/50 rounded-full blur-xl animate-float-random2" />
+          <div className="absolute top-1/2 left-1/2 w-16 h-16 bg-teal-300/40 rounded-full blur-lg animate-float-random3" />
         
           {/* Subtle grid texture */}
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_1px_1px,rgba(0,0,0,0.04)_1px,transparent_0)] bg-[size:24px_24px] opacity-30" />

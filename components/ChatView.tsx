@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   Heart, MessageCircle, Share2, MapPin, MoreHorizontal,
   Image as ImageIcon, Smile, Send, Search, Users,
-  UserPlus, Settings, Edit3, Camera, Phone, Video,
+  UserPlus, Settings, Edit3, Camera, Phone, Mic,
   Compass, Grid, Bookmark, LogOut, PlusCircle, Plane, Trash2, Paperclip, Download
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
@@ -19,6 +19,7 @@ import {
 } from '../firebase/dbService';
 import { getUserTrips } from '../firebase/tripService';
 import Picker from 'emoji-picker-react';
+
 
 interface ChatUser {
   id: string;
@@ -85,6 +86,7 @@ const ChatView = () => {
     const [allUsers, setAllUsers] = useState<any[]>([]);
     const [recentContacts, setRecentContacts] = useState<any[]>([]);
     const [communityMembers, setCommunityMembers] = useState<any[]>([]);
+
   const notificationSoundRef = useRef<HTMLAudioElement | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -107,6 +109,8 @@ const ChatView = () => {
       };
     }
   }, [currentUser]);
+  
+
   
   // Fetch all users from Firestore
   useEffect(() => {
@@ -362,6 +366,10 @@ const ChatView = () => {
       console.error('Error sending trip message:', error);
     }
   };
+
+
+
+
 
   const handleRemoveGroupChat = (chatId: string, e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent chat selection
@@ -664,7 +672,6 @@ const ChatView = () => {
               </div>
               <div className="flex gap-3 text-gray-400 sm:border-l sm:border-gray-200 sm:pl-2.5">
                 <Phone className="w-4 h-4 cursor-pointer hover:text-gray-600" />
-                <Video className="w-4 h-4 cursor-pointer hover:text-gray-600" />
                 {selectedChat.isGroup && (
                   <Users className="w-4 h-4 cursor-pointer hover:text-gray-600" onClick={() => setShowGroupMembers(true)} />
                 )}
@@ -1450,6 +1457,8 @@ const ChatView = () => {
           </div>
         </div>
       )}
+      
+
     </div>
   );
 };
