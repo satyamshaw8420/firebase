@@ -88,7 +88,12 @@ export const generateItinerary = async (prefs: TripPreferences): Promise<Itinera
     if (response.text) {
       // Clean potential markdown code blocks
       const cleanText = response.text.replace(/```json|```/g, '').trim();
-      return JSON.parse(cleanText) as Itinerary;
+      const itinerary = JSON.parse(cleanText) as Itinerary;
+      
+      // Ensure currency is set to Indian Rupees (₹)
+      itinerary.currency = '₹';
+      
+      return itinerary;
     }
     throw new Error("No response text generated");
 

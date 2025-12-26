@@ -244,12 +244,12 @@ const CreateTrip: React.FC = () => {
           // Create new trip in Firebase
           const newTrip = { 
             ...result, 
-            userId: currentUser.uid,
             createdAt: Date.now(), 
             preferences: finalPrefs,
-            isBooked: false
+            isBooked: false,
+            userId: currentUser.uid
           };
-          await addTrip(newTrip);
+          await addTrip(newTrip, currentUser.uid);
           console.log("New trip created successfully in Firebase:", newTrip);
       }
     } catch (err) {

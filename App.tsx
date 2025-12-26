@@ -12,6 +12,8 @@ import SignIn from './pages/SignIn';
 import FAQ from './pages/FAQ';
 import ContactUs from './pages/ContactUs';
 import TestComponents from './src/TestComponents';
+import TripCollaborationPage from './pages/TripCollaboration';
+import TripMembersPage from './pages/TripMembers';
 import { motion } from 'framer-motion';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { useAuth } from './contexts/AuthContext';
@@ -112,6 +114,12 @@ const App: React.FC = () => {
               </ProtectedRoute>
             } />
             <Route path="/community" element={<CommunityWrapper />} />
+            <Route path="/trip/:tripId" element={
+              <ProtectedRoute>
+                <TripCollaborationPage />
+              </ProtectedRoute>
+            } />
+
             <Route path="/guides" element={
               <ProtectedRoute>
                 <Guides />

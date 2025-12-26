@@ -72,12 +72,25 @@ export interface Itinerary {
   packingList: string[];
 }
 
+export interface Expense {
+  id: string;
+  amount: number;
+  description: string;
+  paidBy: string; // userId of the person who paid
+  splitBetween: string[]; // userIds of people who should pay
+  date: number; // timestamp
+  category?: string;
+  customCategory?: string; // For when category is "Other"
+}
+
 export interface SavedTrip extends Itinerary {
   id: string;
+  userId: string; // ID of the user who created the trip
   createdAt: number;
   preferences: TripPreferences;
   isBooked?: boolean; // New field
   joiners?: string[]; // Users who have joined this trip
+  expenses?: Expense[]; // Trip expenses
 }
 
 export interface GuideProfile {

@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import * as ReactRouterDOM from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import { getAllDocuments, getDocument, subscribeToCollection, joinCommunity, leaveCommunity, getCommunityMembers, subscribeToCommunityMembers, getCommunityById, isCommunityMember, addCommunityMessage, createDirectMessageChat, createCommunityGroupChat, addUserToGroupChat, removeUserFromGroupChat, getExistingChat, addDirectMessage, deleteMessage, markMessageAsDelivered, markMessageAsRead, setUserTyping, getTypingUsers, updateDocument, uploadFile } from '../firebase/dbService';
 import { createCommunity as createCommunityService, deleteCommunity } from '../firebase/communityService';
 import { getDiscoverableTrips, joinTrip } from '../firebase/tripService';
@@ -58,7 +59,9 @@ export default function Community() {
         name: '',
         members: [] as any[]
     });
-    
+        
+    const navigate = useNavigate();
+        
     const [showRightSidebar, setShowRightSidebar] = useState(false);
 
     // Fetch communities from Firestore with real-time updates
@@ -381,6 +384,7 @@ export default function Community() {
                         setActiveTab={setActiveTab}
                         showAllMembers={showAllMembers}
                         setShowAllMembers={setShowAllMembers}
+                        navigate={navigate}
                     />
                 )}
                 
@@ -711,10 +715,10 @@ export default function Community() {
 
 // --- SUB-COMPONENTS ---
 
-const FeedView = ({ posts, toggleLike, setSelectedUser, allUsers, currentUser, setShowCreateCommunity, communities, localGuides, communityMembers, showAllMembers, setShowAllMembers, handleDeleteCommunity, setSelectedCommunity, setActiveTab }: any) => {
-    const [stories, setStories] = useState<any[]>([]);
-    const [upcomingEvents, setUpcomingEvents] = useState<any[]>([]);
-    const [travelTips, setTravelTips] = useState<any[]>([]);
+      const FeedView = ({ posts, toggleLike, setSelectedUser, allUsers, currentUser, setShowCreateCommunity, communities, localGuides, communityMembers, showAllMembers, setShowAllMembers, handleDeleteCommunity, setSelectedCommunity, setActiveTab }: any) => {
+        const [stories, setStories] = useState<any[]>([]);
+         const [upcomingEvents, setUpcomingEvents] = useState<any[]>([]);
+         const [travelTips, setTravelTips] = useState<any[]>([]);
 
     // Fetch stories from Firestore
     useEffect(() => {
@@ -1360,7 +1364,7 @@ const ProfileView = ({ user, setUser }: any) => {
     );
 };
 
-const CommunityDetailView = ({ community, members, currentUser, onBack, onJoin, onLeave, setActiveTab, handleDeleteCommunity, showAllMembers, setShowAllMembers }: any) => {
+const CommunityDetailView = ({ community, members, currentUser, onBack, onJoin, onLeave, setActiveTab, handleDeleteCommunity, showAllMembers, setShowAllMembers, navigate }: any) => {
     const [isMember, setIsMember] = useState(false);
     const [onlineMembers, setOnlineMembers] = useState(0);
     const [showCreateGroup, setShowCreateGroup] = useState(false);
@@ -1371,11 +1375,41 @@ const CommunityDetailView = ({ community, members, currentUser, onBack, onJoin, 
     const [discoverableTrips, setDiscoverableTrips] = useState<any[]>([]);
     const [loadingTrips, setLoadingTrips] = useState(true);
     const [onlineStatus, setOnlineStatus] = useState<Record<string, boolean>>({});
+    const [creatorInfo, setCreatorInfo] = useState<any>(null);
     
     // Check if community still exists
     useEffect(() => {
         // In a real implementation, this would subscribe to community changes
         // For now, we'll rely on the parent component to handle this
+    }, [community]);
+    
+    // Fetch creator info when community is loaded
+    useEffect(() => {
+        const fetchCreatorInfo = async () => {
+            if (community?.createdBy) {
+                try {
+                    const creatorData = await getDocument('users', community.createdBy);
+                    if (creatorData) {
+                        setCreatorInfo(creatorData);
+                    } else {
+                        // If creator data is not found, create a fallback
+                        setCreatorInfo({
+                            name: 'Community Creator',
+                            avatar: getGmailAvatar('Creator', community.createdBy, 150)
+                        });
+                    }
+                } catch (error) {
+                    console.error('Error fetching creator info:', error);
+                    // Fallback if there's an error
+                    setCreatorInfo({
+                        name: 'Community Creator',
+                        avatar: getGmailAvatar('Creator', community.createdBy, 150)
+                    });
+                }
+            }
+        };
+        
+        fetchCreatorInfo();
     }, [community]);
     useEffect(() => {
         if (currentUser && community) {
@@ -1535,6 +1569,9 @@ const CommunityDetailView = ({ community, members, currentUser, onBack, onJoin, 
                                 <div className="flex items-center gap-2 bg-white/20 px-4 py-2 rounded-full">
                                     <MapPin className="w-5 h-5" />
                                     <span className="font-medium">{community.location || 'Global'}</span>
+                                </div>
+                                <div className="flex items-center gap-2 bg-white/20 px-4 py-2 rounded-full">
+                                    <span className="font-medium">Creator: {creatorInfo?.name || 'Loading...'}</span>
                                 </div>
                             </div>
                         </div>
@@ -1794,28 +1831,32 @@ const CommunityDetailView = ({ community, members, currentUser, onBack, onJoin, 
                                                 </div>
                                                 <button 
                                                     onClick={async () => {
-                                                        if (hasJoined) return;
+                                                        if (hasJoined) {
+                                                            // If user has already joined, navigate to trip details
+                                                            navigate(`/trip/${trip.id}`);
+                                                            return;
+                                                        }
                                                         try {
                                                             await joinTrip(trip.id, currentUser.uid);
                                                             // Update the trip in state
-                                                            setDiscoverableTrips(prev => 
-                                                                prev.map(t => 
-                                                                    t.id === trip.id 
-                                                                        ? { ...t, joiners: [...(t.joiners || []), currentUser.uid] }
+                                                            setDiscoverableTrips(prev =>
+                                                                prev.map(t =>
+                                                                    t.id === trip.id
+                                                                        ? { ...t, joiners: [ ...(t.joiners || []), currentUser.uid] }
                                                                         : t
                                                                 )
                                                             );
-                                                            // Show success message
+                                                            // Show success message and navigate to trip collaboration page
                                                             toast.success('Successfully joined the trip!');
+                                                            navigate(`/trip/${trip.id}`);
                                                         } catch (error: any) {
                                                             console.error('Error joining trip:', error);
                                                             toast.error(error.message || 'Failed to join trip. Please try again.');
                                                         }
                                                     }}
-                                                    disabled={hasJoined}
-                                                    className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 ${hasJoined ? 'bg-emerald-100 text-emerald-700 cursor-default' : 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white hover:from-emerald-600 hover:to-teal-600 shadow-sm hover:shadow-md'}`}
+                                                    className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 ${hasJoined ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white hover:from-emerald-600 hover:to-teal-600 shadow-sm hover:shadow-md' : 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white hover:from-emerald-600 hover:to-teal-600 shadow-sm hover:shadow-md'}`}
                                                 >
-                                                    {hasJoined ? 'Joined' : 'Join Trip'}
+                                                    {hasJoined ? 'See Details' : 'Join Trip'}
                                                 </button>
                                             </div>
                                         </div>
