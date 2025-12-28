@@ -56,7 +56,7 @@ export const getAllDocuments = async (collectionName: string) => {
     const documents: any[] = [];
     querySnapshot.forEach((doc) => {
       const docData = doc.data() as DocumentData;
-      documents.push({ id: doc.id, ...docData });
+      documents.push({ ...docData, id: doc.id });
     });
     return documents;
   } catch (error) {
@@ -69,7 +69,9 @@ export const getAllDocuments = async (collectionName: string) => {
 export const updateDocument = async (collectionName: string, docId: string, data: any) => {
   try {
     const docRef = doc(db, collectionName, docId);
-    await updateDoc(docRef, data);
+    // await updateDoc(docRef, data);
+await setDoc(docRef, data, { merge: true });
+
     return docId;
   } catch (error) {
     console.error('Error updating document:', error);
@@ -117,7 +119,7 @@ export const queryDocuments = async (
     const documents: any[] = [];
     querySnapshot.forEach((doc) => {
       const docData = doc.data() as DocumentData;
-      documents.push({ id: doc.id, ...docData });
+      documents.push({ ...docData, id: doc.id });
     });
     
     return documents;
@@ -154,7 +156,7 @@ export const subscribeToCollection = (
       const documents: any[] = [];
       querySnapshot.forEach((doc) => {
         const docData = doc.data() as DocumentData;
-        documents.push({ id: doc.id, ...docData });
+        documents.push({ ...docData, id: doc.id });
       });
       callback(documents);
     }, (error) => {

@@ -74,6 +74,26 @@ export const getUserTrips = async (userId: string): Promise<SavedTrip[]> => {
   }
 };
 
+export const subscribeToUserTrips = (userId: string, callback: (trips: SavedTrip[]) => void) => {
+  try {
+    const unsubscribe = subscribeToCollection(
+      TRIPS_COLLECTION,
+      (documents: any[]) => {
+        const trips = documents.map(doc => ({
+          ...doc,
+          id: doc.id
+        } as SavedTrip));
+        callback(trips);
+      },
+      [{ field: 'userId', operator: '==', value: userId }]
+    );
+    return unsubscribe;
+  } catch (error) {
+    console.error('Error subscribing to user trips:', error);
+    throw error;
+  }
+};
+
 // Update a trip
 export const updateTrip = async (tripId: string, tripData: Partial<SavedTrip>) => {
   try {
@@ -153,13 +173,10 @@ export const getDiscoverableTrips = async (communityMemberIds: string[], current
 // Add an expense to a trip (using subcollection)
 export const addExpenseToTrip = async (tripId: string, expense: Omit<Expense, 'id'>) => {
   try {
-    const expenseWithId = {
-      ...expense,
-      id: Date.now().toString(), // Simple ID generation
-    };
-    
     // Add expense to the expenses subcollection
-    const expenseId = await addDocument(`trips/${tripId}/expenses`, expenseWithId);
+    // Note: We don't need to manually generate an ID as Firestore does it for us
+    // and we want the document ID to match the ID in the object when retrieved
+    const expenseId = await addDocument(`trips/${tripId}/expenses`, expense);
     
     return expenseId;
   } catch (error) {
@@ -209,8 +226,8 @@ export const subscribeToTripExpenses = (tripId: string, callback: (expenses: Exp
       `trips/${tripId}/expenses`,
       (documents: any[]) => {
         const expenses = documents.map(doc => ({
-          id: doc.id,
-          ...doc
+          ...doc,
+          id: doc.id
         } as Expense));
         callback(expenses);
       }

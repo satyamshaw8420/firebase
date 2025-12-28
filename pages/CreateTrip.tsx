@@ -480,7 +480,7 @@ const CreateTrip: React.FC = () => {
                 {(prefs.travelerType === TravelerType.SOLO || prefs.travelerType === TravelerType.FRIENDS) && (
                     <div className="mb-8 animate-in zoom-in-95 duration-300 ease-out">
                         <div className={`
-                            relative rounded-2xl border-2 p-6 transition-all duration-500 overflow-hidden
+                            relative rounded-2xl border-2 p-4 sm:p-6 transition-all duration-500 overflow-hidden
                             ${prefs.joinStrangerGroup 
                                 ? `bg-gradient-to-r from-violet-600 to-indigo-600 border-indigo-500 shadow-xl shadow-indigo-200` 
                                 : 'bg-gradient-to-r from-gray-50 to-gray-100 border-gray-200'}
@@ -493,18 +493,18 @@ const CreateTrip: React.FC = () => {
                                 </>
                             )}
 
-                            <div className="relative z-10 flex items-start gap-5">
+                            <div className="relative z-10 flex flex-col sm:flex-row items-start gap-4 sm:gap-5">
                                 <div className={`p-4 rounded-full shrink-0 shadow-sm ${prefs.joinStrangerGroup ? 'bg-white/20 text-white' : 'bg-indigo-100 text-indigo-500'}`}>
                                     <Sparkles className="w-6 h-6" />
                                 </div>
-                                <div className="flex-1">
-                                    <div className="flex items-center gap-2 mb-1">
-                                        <h3 className={`text-xl font-bold ${prefs.joinStrangerGroup ? 'text-white' : 'text-gray-800'}`}>
+                                <div className="flex-1 w-full">
+                                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2">
+                                        <h3 className={`text-lg sm:text-xl font-bold ${prefs.joinStrangerGroup ? 'text-white' : 'text-gray-800'}`}>
                                             Strangers United
                                         </h3>
-                                        <span className="text-[10px] uppercase font-bold bg-amber-400 text-amber-900 px-2 py-0.5 rounded-full tracking-wide">Beta</span>
+                                        <span className="text-[10px] uppercase font-bold bg-amber-400 text-amber-900 px-2 py-0.5 rounded-full tracking-wide whitespace-nowrap">Beta</span>
                                     </div>
-                                    <p className={`text-sm mb-5 leading-relaxed ${prefs.joinStrangerGroup ? 'text-indigo-100' : 'text-gray-600'}`}>
+                                    <p className={`text-sm mb-4 leading-relaxed ${prefs.joinStrangerGroup ? 'text-indigo-100' : 'text-gray-600'}`}>
                                         Why travel alone? Join a curated group of 10-15 like-minded explorers. Share costs, make friends, and stay safe.
                                     </p>
                                     
@@ -516,8 +516,8 @@ const CreateTrip: React.FC = () => {
                                                 checked={prefs.joinStrangerGroup}
                                                 onChange={(e) => setPrefs({...prefs, joinStrangerGroup: e.target.checked})}
                                             />
-                                            <div className={`w-14 h-8 bg-gray-300 peer-focus:outline-none rounded-full peer transition-colors duration-300 ease-in-out ${prefs.joinStrangerGroup ? 'bg-[#4FC3F7]' : ''}`}></div>
-                                            <div className="absolute top-1 left-1 bg-white border border-gray-100 w-6 h-6 rounded-full transition-transform duration-300 peer-checked:translate-x-6 shadow-sm"></div>
+                                            <div className={`w-12 h-6 sm:w-14 sm:h-8 bg-gray-300 peer-focus:outline-none rounded-full peer transition-colors duration-300 ease-in-out ${prefs.joinStrangerGroup ? 'bg-[#4FC3F7]' : ''}`}></div>
+                                            <div className="absolute top-0.5 left-0.5 sm:top-1 sm:left-1 bg-white border border-gray-100 w-5 h-5 sm:w-6 sm:h-6 rounded-full transition-transform duration-300 peer-checked:translate-x-5 sm:peer-checked:translate-x-6 shadow-sm"></div>
                                         </div>
                                         <span className={`font-bold transition-colors ${prefs.joinStrangerGroup ? 'text-white' : 'text-gray-500 group-hover:text-indigo-600'}`}>
                                             {prefs.joinStrangerGroup ? 'Count me in!' : 'Enable Group Tour'}
@@ -526,9 +526,9 @@ const CreateTrip: React.FC = () => {
                                     
                                     {/* Gender Preference Selection - Only shown when Strangers United is enabled */}
                                     {prefs.joinStrangerGroup && (
-                                        <div className="mt-6 pt-4 border-t border-white/20">
+                                        <div className="mt-4 sm:mt-6 pt-4 border-t border-white/20">
                                             <h4 className="text-sm font-bold mb-3 text-white">Group Preferences</h4>
-                                            <div className="grid grid-cols-3 gap-2">
+                                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                                                 <button 
                                                     onClick={() => setPrefs({
                                                         ...prefs, 

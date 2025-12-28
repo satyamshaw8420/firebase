@@ -1,4 +1,4 @@
-// Allow read/write access on all documents to any user signed in to the application
+ // Allow read/write access on all documents to any user signed in to the application
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useAuth } from '../contexts/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Plus, 
@@ -14,9 +15,21 @@ import {
   Coins,
   MapPin,
   Calendar,
-  IndianRupee
+  IndianRupee,
+  ArrowRight,
+  ArrowLeft
 } from 'lucide-react';
 import { SavedTrip, Expense } from '../types';
+
+// Define form state interface with string amount for input handling
+interface ExpenseFormState {
+  amount: string;
+  description: string;
+  paidBy: string;
+  splitBetween: string[];
+  category: string;
+  customCategory: string;
+}
 import { 
   getTrip, 
   getTripExpenses, 
@@ -40,6 +53,7 @@ interface PaymentSplit {
 }
 
 const TripCollaborationView: React.FC<TripCollaborationViewProps> = ({ tripId }) => {
+  const { currentUser } = useAuth();
   const [trip, setTrip] = useState<SavedTrip | null>(null);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [paymentSplits, setPaymentSplits] = useState<Record<string, PaymentSplit>>({});
@@ -49,12 +63,16 @@ const TripCollaborationView: React.FC<TripCollaborationViewProps> = ({ tripId })
   const [error, setError] = useState<string | null>(null);
   const [userNames, setUserNames] = useState<Record<string, string>>({});
   
+  // Batch operations state
+  const [editMode, setEditMode] = useState(false);
+  const [selectedExpenses, setSelectedExpenses] = useState<Set<string>>(new Set());
+  
   // Form state for expense form
-  const [expenseForm, setExpenseForm] = useState({
-    amount: 0,
+  const [expenseForm, setExpenseForm] = useState<ExpenseFormState>({
+    amount: '',
     description: '',
     paidBy: '', // Will be set to current user
-    splitBetween: [] as string[], // Will be set to all members
+    splitBetween: [], // Will be set to all members
     category: '',
     customCategory: '', // For when user selects "Other"
   });
@@ -67,21 +85,31 @@ const TripCollaborationView: React.FC<TripCollaborationViewProps> = ({ tripId })
   // Set up real-time subscription to expenses
   useEffect(() => {
     let unsubscribe: (() => void) | null = null;
+    let isMounted = true;
     
-    const setupSubscription = async () => {
+    const setupSubscription = () => {
       try {
         // Set up real-time listener for expenses
         unsubscribe = subscribeToTripExpenses(tripId, (updatedExpenses) => {
+          if (!isMounted) return;
           setExpenses(updatedExpenses);
           
           // Recalculate payment splits when expenses change
-          calculatePaymentSplits(tripId).then(setPaymentSplits).catch(err => {
-            console.error('Error recalculating payment splits:', err);
+          calculatePaymentSplits(tripId).then(splits => {
+            if (isMounted) {
+              setPaymentSplits(splits);
+            }
+          }).catch(err => {
+            if (isMounted) {
+              console.error('Error recalculating payment splits:', err);
+            }
           });
         });
       } catch (err) {
-        console.error('Error setting up expense subscription:', err);
-        setError('Failed to set up real-time updates');
+        if (isMounted) {
+          console.error('Error setting up expense subscription:', err);
+          setError('Failed to set up real-time updates');
+        }
       }
     };
     
@@ -89,6 +117,7 @@ const TripCollaborationView: React.FC<TripCollaborationViewProps> = ({ tripId })
     
     // Cleanup function
     return () => {
+      isMounted = false;
       if (unsubscribe) {
         unsubscribe();
       }
@@ -193,7 +222,7 @@ const TripCollaborationView: React.FC<TripCollaborationViewProps> = ({ tripId })
     } else {
       setExpenseForm(prev => ({
         ...prev,
-        [name]: name === 'amount' ? parseFloat(value) || 0 : name === 'splitBetween' ? 
+        [name]: name === 'amount' ? value : name === 'splitBetween' ? 
           (e.target as HTMLSelectElement).selectedOptions ? 
             Array.from((e.target as HTMLSelectElement).selectedOptions).map(option => option.value) : 
             value : 
@@ -205,25 +234,38 @@ const TripCollaborationView: React.FC<TripCollaborationViewProps> = ({ tripId })
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      // In a real app, we'd get current user from context
-      const currentUser = 'current_user_id'; // Placeholder
+      if (!currentUser) {
+        setError('You must be logged in to add expenses');
+        return;
+      }
       
       const expenseData = {
         ...expenseForm,
+        amount: parseFloat(expenseForm.amount) || 0,
         category: expenseForm.category === 'Other' ? expenseForm.customCategory : expenseForm.category,
-        paidBy: expenseForm.paidBy || currentUser,
+        paidBy: expenseForm.paidBy || currentUser.uid,
         splitBetween: expenseForm.splitBetween.length > 0 ? expenseForm.splitBetween : getAllMembers(),
         date: Date.now(),
+        createdBy: currentUser.uid,
       };
 
       if (editingExpenseId) {
+        // Update existing expense
         await updateTripExpense(tripId, editingExpenseId, expenseData);
+        
+        // Refetch data to ensure UI updates properly after edit
+        const expensesData = await getTripExpenses(tripId);
+        const splitsData = await calculatePaymentSplits(tripId);
+        
+        setExpenses(expensesData);
+        setPaymentSplits(splitsData);
       } else {
+        // Add new expense
         await addExpenseToTrip(tripId, expenseData);
       }
 
       setExpenseForm({
-        amount: 0,
+        amount: '',
         description: '',
         paidBy: '',
         splitBetween: [],
@@ -232,7 +274,6 @@ const TripCollaborationView: React.FC<TripCollaborationViewProps> = ({ tripId })
       });
       setShowExpenseForm(false);
       setEditingExpenseId(null);
-      // refreshData(); // Not needed anymore since we have real-time subscription
     } catch (err) {
       setError('Failed to save expense');
       console.error('Error saving expense:', err);
@@ -245,7 +286,7 @@ const TripCollaborationView: React.FC<TripCollaborationViewProps> = ({ tripId })
     
     setEditingExpenseId(expense.id);
     setExpenseForm({
-      amount: expense.amount,
+      amount: expense.amount.toString(),
       description: expense.description,
       paidBy: expense.paidBy,
       splitBetween: expense.splitBetween,
@@ -255,13 +296,159 @@ const TripCollaborationView: React.FC<TripCollaborationViewProps> = ({ tripId })
     setShowExpenseForm(true);
   };
 
+
+
   const handleDeleteExpense = async (expenseId: string) => {
     try {
+      if (!currentUser) {
+        setError('You must be logged in to delete expenses');
+        return;
+      }
+      
+      // Find the expense to check if current user is authorized to delete it
+      const expenseToDelete = expenses.find(exp => exp.id === expenseId);
+      
+      // Only allow the user who paid the expense or trip owner to delete it
+      // We perform a client-side check for better UX, but we also allow the operation to proceed
+      // if the standard checks fail, in case the user has admin privileges (enforced by server rules).
+      const isStandardAuthorized = 
+        (expenseToDelete && expenseToDelete.paidBy === currentUser.uid) || 
+        (expenseToDelete && expenseToDelete.createdBy === currentUser.uid) || 
+        (trip && trip.userId === currentUser.uid);
+
+      if (!isStandardAuthorized) {
+         // We don't return here anymore, allowing admins to proceed.
+         console.log('User not authorized by standard client checks. Attempting delete as admin...');
+      }
+      
+      // Delete from the database
       await deleteTripExpense(tripId, expenseId);
-      // refreshData(); // Not needed anymore since we have real-time subscription
-    } catch (err) {
-      setError('Failed to delete expense');
+      
+      // The real-time subscription should update the UI automatically
+      // But we'll still refresh to ensure consistency
+    } catch (err: any) {
+      setError(`Failed to delete expense: ${err.message || 'Permission denied'}`);
       console.error('Error deleting expense:', err);
+      
+      // Refetch data to ensure UI is consistent with database
+      try {
+        const expensesData = await getTripExpenses(tripId);
+        const splitsData = await calculatePaymentSplits(tripId);
+        
+        setExpenses(expensesData);
+        setPaymentSplits(splitsData);
+      } catch (refreshErr) {
+        console.error('Error refreshing data after delete failure:', refreshErr);
+      }
+    }
+  };
+  
+  // Batch operations
+  const toggleExpenseSelection = (expenseId: string) => {
+    const newSelected = new Set(selectedExpenses);
+    if (newSelected.has(expenseId)) {
+      newSelected.delete(expenseId);
+    } else {
+      newSelected.add(expenseId);
+    }
+    setSelectedExpenses(newSelected);
+  };
+  
+  const selectAllExpenses = () => {
+    const allExpenseIds = new Set(expenses.map(expense => expense.id));
+    setSelectedExpenses(allExpenseIds);
+  };
+  
+  const clearAllSelections = () => {
+    setSelectedExpenses(new Set());
+  };
+  
+  const deleteSelectedExpenses = async () => {
+    if (selectedExpenses.size === 0) return;
+    
+    try {
+      // Delete all selected expenses
+      const deletionPromises = Array.from(selectedExpenses).map(async (expenseId) => {
+        try {
+          await deleteTripExpense(tripId, expenseId);
+          return { id: expenseId, status: 'success' };
+        } catch (error) {
+          console.error(`Failed to delete expense ${expenseId}:`, error);
+          return { id: expenseId, status: 'error', error };
+        }
+      });
+      
+      await Promise.all(deletionPromises);
+      
+      // Refetch data to update UI
+      const expensesData = await getTripExpenses(tripId);
+      const splitsData = await calculatePaymentSplits(tripId);
+      
+      setExpenses(expensesData);
+      setPaymentSplits(splitsData);
+      setSelectedExpenses(new Set()); // Clear selections after deletion
+      setEditMode(false); // Exit edit mode
+    } catch (err) {
+      setError('Failed to delete selected expenses');
+      console.error('Error deleting selected expenses:', err);
+    }
+  };
+  
+  const updateSelectedExpensesCategory = async (newCategory: string) => {
+    if (selectedExpenses.size === 0) return;
+    
+    try {
+      // Update category for all selected expenses
+      const updatePromises = Array.from(selectedExpenses).map(async (expenseId) => {
+        try {
+           await updateTripExpense(tripId, expenseId, { category: newCategory });
+        } catch (error) {
+           console.error(`Failed to update category for expense ${expenseId}:`, error);
+        }
+      });
+      
+      await Promise.all(updatePromises);
+      
+      // Refetch data to update UI
+      const expensesData = await getTripExpenses(tripId);
+      const splitsData = await calculatePaymentSplits(tripId);
+      
+      setExpenses(expensesData);
+      setPaymentSplits(splitsData);
+      setSelectedExpenses(new Set()); // Clear selections after update
+      setEditMode(false); // Exit edit mode
+    } catch (err) {
+      setError('Failed to update selected expenses');
+      console.error('Error updating selected expenses:', err);
+    }
+  };
+  
+  const updateSelectedExpensesAmount = async (newAmount: number) => {
+    if (selectedExpenses.size === 0) return;
+    
+    try {
+      // Update amount for all selected expenses
+      const updatePromises = Array.from(selectedExpenses).map(async (expenseId) => {
+        try {
+           await updateTripExpense(tripId, expenseId, { amount: newAmount });
+        } catch (error) {
+           console.error(`Failed to update amount for expense ${expenseId}:`, error);
+        }
+      });
+      
+      await Promise.all(updatePromises);
+      
+      // Refetch data to update UI
+      const expensesData = await getTripExpenses(tripId);
+      const splitsData = await calculatePaymentSplits(tripId);
+      
+      setExpenses(expensesData);
+      setPaymentSplits(splitsData);
+      setSelectedExpenses(new Set()); // Clear selections after update
+      setEditMode(false); // Exit edit mode
+    } catch (err) {
+      setError('Failed to update selected expenses');
+      console.error('Error updating selected expenses:', err);
     }
   };
   
@@ -294,7 +481,8 @@ const TripCollaborationView: React.FC<TripCollaborationViewProps> = ({ tripId })
             paidBy: fullPayer,
             splitBetween: allMembers,
             date: Date.now(),
-            category: 'Trip Payment'
+            category: 'Trip Payment',
+            createdBy: currentUser?.uid,
           };
           
           // Delete all existing expenses first
@@ -325,7 +513,8 @@ const TripCollaborationView: React.FC<TripCollaborationViewProps> = ({ tripId })
               paidBy: memberId,
               splitBetween: [memberId], // Each person pays for their own custom amount
               date: Date.now(),
-              category: 'Custom Payment'
+              category: 'Custom Payment',
+              createdBy: currentUser?.uid,
             };
             
             await addExpenseToTrip(tripId, newExpense);
@@ -361,7 +550,8 @@ const TripCollaborationView: React.FC<TripCollaborationViewProps> = ({ tripId })
           paidBy: fullPayer,
           splitBetween: allMembers,
           date: Date.now(),
-          category: 'Trip Payment'
+          category: 'Trip Payment',
+          createdBy: currentUser?.uid,
         }];
       }
     } else if (option === 'custom') {
@@ -381,7 +571,8 @@ const TripCollaborationView: React.FC<TripCollaborationViewProps> = ({ tripId })
           paidBy: maxPayer,
           splitBetween: allMembers,
           date: Date.now(),
-          category: 'Trip Payment'
+          category: 'Trip Payment',
+          createdBy: currentUser?.uid,
         }];
     }
     
@@ -457,26 +648,66 @@ const TripCollaborationView: React.FC<TripCollaborationViewProps> = ({ tripId })
             <IndianRupee className="w-5 h-5 mr-2 text-emerald-500" />
             Trip Expenses
           </h3>
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => {
-              setExpenseForm({
-                amount: 0, 
-                description: '',
-                paidBy: '',
-                splitBetween: getAllMembers(), // Default to all members
-                category: '',
-                customCategory: '',
-              });
-              setShowExpenseForm(true);
-              setEditingExpenseId(null);
-            }}
-            className="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors"
-          >
-            <Plus className="w-4 h-4 mr-1" />
-            Add Expense
-          </motion.button>
+          <div className="flex items-center space-x-3">
+            {editMode ? (
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={selectAllExpenses}
+                  className="text-sm bg-gray-200 hover:bg-gray-300 text-gray-800 px-3 py-1 rounded-lg transition-colors"
+                >
+                  Select All
+                </button>
+                <button
+                  onClick={clearAllSelections}
+                  className="text-sm bg-gray-200 hover:bg-gray-300 text-gray-800 px-3 py-1 rounded-lg transition-colors"
+                >
+                  Clear
+                </button>
+                <button
+                  onClick={deleteSelectedExpenses}
+                  disabled={selectedExpenses.size === 0}
+                  className={`text-sm px-3 py-1 rounded-lg transition-colors ${selectedExpenses.size === 0 ? 'bg-red-300 text-gray-500 cursor-not-allowed' : 'bg-red-500 hover:bg-red-600 text-white'}`}
+                >
+                  Delete ({selectedExpenses.size})
+                </button>
+                <button
+                  onClick={() => setEditMode(false)}
+                  className="text-sm bg-gray-500 hover:bg-gray-600 text-white px-3 py-1 rounded-lg transition-colors"
+                >
+                  Done
+                </button>
+              </div>
+            ) : (
+              <>
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => {
+                    setExpenseForm({
+                      amount: '', 
+                      description: '',
+                      paidBy: currentUser?.uid || '',
+                      splitBetween: getAllMembers(), // Default to all members
+                      category: '',
+                      customCategory: '',
+                    });
+                    setShowExpenseForm(true);
+                    setEditingExpenseId(null);
+                  }}
+                  className="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors mr-2"
+                >
+                  <Plus className="w-4 h-4 mr-1" />
+                  Add Expense
+                </motion.button>
+                <button
+                  onClick={() => setEditMode(true)}
+                  className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded-lg transition-colors"
+                >
+                  Edit
+                </button>
+              </>
+            )}
+          </div>
         </div>
 
         <div className="space-y-3">
@@ -486,39 +717,69 @@ const TripCollaborationView: React.FC<TripCollaborationViewProps> = ({ tripId })
               <p>No expenses added yet</p>
             </div>
           ) : (
-            expenses.map((expense) => (
+            expenses.map((expense, index) => (
               <motion.div
-                key={expense.id}
+                key={`${expense.id}-${index}`}
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 className="flex items-center justify-between p-4 border border-gray-200 rounded-lg"
               >
-                <div className="flex-1">
-                  <div className="font-medium">{expense.description}</div>
-                  <div className="text-sm text-gray-500">
-                    Paid by: {userNames[expense.paidBy] || expense.paidBy.substring(0, 8) + '...'} • {formatCurrency(expense.amount)}
-                  </div>
-                  <div className="text-xs text-gray-400 mt-1">
-                    Category: {expense.category || 'Uncategorized'}
-                  </div>
-                  <div className="text-xs text-gray-400 mt-1">
-                    Split between: {expense.splitBetween.slice(0, 3).map(id => userNames[id] || id.substring(0, 6)).join(', ')}
-                    {expense.splitBetween.length > 3 && ` +${expense.splitBetween.length - 3} more`}
+                <div className="flex items-center space-x-3 flex-1">
+                  {editMode && (
+                    <input
+                      type="checkbox"
+                      checked={selectedExpenses.has(expense.id)}
+                      onChange={() => toggleExpenseSelection(expense.id)}
+                      className="w-5 h-5 text-emerald-600 rounded focus:ring-emerald-500"
+                    />
+                  )}
+                  <div className="flex-1">
+                    <div className="font-medium">{expense.description}</div>
+                    <div className="text-sm text-gray-500">
+                      Paid by: {userNames[expense.paidBy] || expense.paidBy.substring(0, 8) + '...'} • {formatCurrency(expense.amount)}
+                    </div>
+                    <div className="text-xs text-gray-400 mt-1">
+                      Category: {expense.category || 'Uncategorized'}
+                    </div>
+                    <div className="text-xs text-gray-400 mt-1">
+                      Split between: {expense.splitBetween.slice(0, 3).map(id => userNames[id] || id.substring(0, 6)).join(', ')}
+                      {expense.splitBetween.length > 3 && ` +${expense.splitBetween.length - 3} more`}
+                    </div>
                   </div>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <button
-                    onClick={() => handleEditExpense(expense)}
-                    className="text-blue-500 hover:text-blue-700"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => handleDeleteExpense(expense.id)}
-                    className="text-red-500 hover:text-red-700"
-                  >
-                    Delete
-                  </button>
+                  {editMode ? (
+                    <span className="text-sm text-gray-500">
+                      {expense.paidBy === currentUser?.uid ? 'Yours' : 'Other'}
+                    </span>
+                  ) : (
+                    <>
+                      {currentUser && (
+                      // Only allow deletion/editing if they are the payer or creator
+                      (expense.paidBy === currentUser.uid || 
+                       expense.createdBy === currentUser.uid)
+                    ) && (
+                        <button
+                          onClick={() => handleEditExpense(expense)}
+                          className="text-blue-500 hover:text-blue-700"
+                        >
+                          Edit
+                        </button>
+                      )}
+                      {currentUser && (
+                        // Only allow deletion/editing if they are the payer or creator
+                        (expense.paidBy === currentUser.uid || 
+                         expense.createdBy === currentUser.uid)
+                      ) && (
+                        <button
+                          onClick={() => handleDeleteExpense(expense.id)}
+                          className="text-red-500 hover:text-red-700"
+                        >
+                          Delete
+                        </button>
+                      )}
+                    </>
+                  )}
                 </div>
               </motion.div>
             ))
@@ -544,25 +805,65 @@ const TripCollaborationView: React.FC<TripCollaborationViewProps> = ({ tripId })
             </div>
             <button
               onClick={() => {
-                // Initialize custom payments with equal split as default
+                if (expenses.length === 0) {
+                  setError('Nothing to pay');
+                  return;
+                }
                 const allMembers = getAllMembers();
                 const totalExpenses = expenses.reduce((sum, exp) => sum + exp.amount, 0);
                 const equalAmount = totalExpenses / allMembers.length;
-                                
                 const initialCustomPayments: Record<string, number> = {};
                 allMembers.forEach(memberId => {
                   initialCustomPayments[memberId] = equalAmount;
                 });
-                                
                 setCustomPayments(initialCustomPayments);
                 setShowPaymentOptions(true);
               }}
-              className="text-sm bg-emerald-500 hover:bg-emerald-600 text-white px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1"
+              disabled={expenses.length === 0}
+              className={`text-sm ${expenses.length === 0 ? 'bg-gray-300 text-gray-600 cursor-not-allowed' : 'bg-emerald-500 hover:bg-emerald-600 text-white'} px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1`}
             >
               <Wallet className="w-4 h-4" />
               Payment Options
             </button>
           </div>
+        </div>
+        <div className="mb-4 p-4 bg-amber-50 rounded-lg border border-amber-200">
+          <div className="font-semibold text-amber-800 mb-2">Simple Payment Instructions</div>
+          <div className="flex flex-wrap items-center gap-3 text-xs text-amber-800 mb-2">
+            <span className="flex items-center gap-1">
+              <span className="inline-block w-2 h-2 rounded-full bg-red-500"></span>
+              Pay
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="inline-block w-2 h-2 rounded-full bg-green-500"></span>
+              Get
+            </span>
+            <span className="flex items-center gap-1">
+              <ArrowRight className="w-4 h-4 text-red-600" />
+              Pay to
+            </span>
+            <span className="flex items-center gap-1">
+              <ArrowLeft className="w-4 h-4 text-green-600" />
+              Get from
+            </span>
+          </div>
+          {expenses.length === 0 ? (
+            <div className="text-amber-700 text-sm">No expenses added</div>
+          ) : (
+            <div className="space-y-2">
+              {Object.entries(paymentSplits).flatMap(([fromUser, data]) => 
+                Object.entries(data.owes).map(([toUser, amount]) => (
+                  <div key={`${fromUser}-${toUser}`} className="flex items-center text-sm">
+                    <ArrowRight className="w-4 h-4 mr-1 text-red-600" />
+                    <span className="font-medium">{userNames[fromUser] || fromUser.substring(0, 8) + '...'}</span>
+                    <span className="mx-2">pays</span>
+                    <span className="font-medium">{userNames[toUser] || toUser.substring(0, 8) + '...'}</span>
+                    <span className="ml-2 text-red-700">{formatCurrency(amount)}</span>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
         </div>
                 
         <div className="space-y-4">
@@ -576,7 +877,8 @@ const TripCollaborationView: React.FC<TripCollaborationViewProps> = ({ tripId })
                   <div className="text-lg font-bold text-red-600">{formatCurrency(splits.totalOwing)}</div>
                   {Object.entries(splits.owes).map(([toUser, amount]) => (
                     <div key={toUser} className="text-sm text-red-600 ml-2 mt-1">
-                      → Pay {formatCurrency(amount)} to {userNames[toUser] || toUser.substring(0, 8) + '...'}
+                      <ArrowRight className="inline w-4 h-4 mr-1 text-red-600" />
+                      Pay {formatCurrency(amount)} to {userNames[toUser] || toUser.substring(0, 8) + '...'}
                     </div>
                   ))}
                 </div>
@@ -588,7 +890,8 @@ const TripCollaborationView: React.FC<TripCollaborationViewProps> = ({ tripId })
                   <div className="text-lg font-bold text-green-600">{formatCurrency(splits.totalOwed)}</div>
                   {Object.entries(splits.owedBy).map(([fromUser, amount]) => (
                     <div key={fromUser} className="text-sm text-green-600 ml-2 mt-1">
-                      ← From {userNames[fromUser] || fromUser.substring(0, 8) + '...'}: {formatCurrency(amount)}
+                      <ArrowLeft className="inline w-4 h-4 mr-1 text-green-600" />
+                      From {userNames[fromUser] || fromUser.substring(0, 8) + '...'}: {formatCurrency(amount)}
                     </div>
                   ))}
                 </div>
@@ -888,7 +1191,7 @@ const TripCollaborationView: React.FC<TripCollaborationViewProps> = ({ tripId })
                     setShowExpenseForm(false);
                     setEditingExpenseId(null);
                     setExpenseForm({
-                      amount: 0,
+                      amount: '',
                       description: '',
                       paidBy: '',
                       splitBetween: [],
@@ -909,10 +1212,11 @@ const TripCollaborationView: React.FC<TripCollaborationViewProps> = ({ tripId })
                   </label>
                   <input
                     type="number"
-                    step="0.01"
+                   
                     name="amount"
                     value={expenseForm.amount}
                     onChange={handleFormChange}
+                    placeholder="Enter your amount"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
                     required
                   />
@@ -927,6 +1231,7 @@ const TripCollaborationView: React.FC<TripCollaborationViewProps> = ({ tripId })
                     name="description"
                     value={expenseForm.description}
                     onChange={handleFormChange}
+                    placeholder="e.g., Dinner at local restaurant, Hotel, Flight, etc."
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
                     required
                   />
@@ -1072,7 +1377,7 @@ const TripCollaborationView: React.FC<TripCollaborationViewProps> = ({ tripId })
                       setShowExpenseForm(false);
                       setEditingExpenseId(null);
                       setExpenseForm({
-                        amount: 0,
+                        amount: '',
                         description: '',
                         paidBy: '',
                         splitBetween: [],

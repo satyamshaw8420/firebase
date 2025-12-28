@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Users, Crown, User, ArrowLeft } from 'lucide-react';
-import { getTrip } from '../firebase/tripService';
+import { Users, Crown, User, ArrowLeft, ArrowRight } from 'lucide-react';
+import { getTrip, calculatePaymentSplits, subscribeToTripExpenses } from '../firebase/tripService';
 import { SavedTrip } from '../types';
 import { getDocument } from '../firebase/dbService';
 
@@ -12,29 +12,39 @@ const TripMembersPage: React.FC = () => {
   const [trip, setTrip] = useState<SavedTrip | null>(null);
   const [userNames, setUserNames] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
+  const [paymentSplits, setPaymentSplits] = useState<Record<string, { owes: Record<string, number>; owedBy: Record<string, number>; totalOwed: number; totalOwing: number }>>({});
+  const formatCurrency = (amount: number) => `₹${amount.toFixed(2)}`;
 
   // Fetch trip data and user names
   useEffect(() => {
-    const fetchTripData = async () => {
-      if (tripId) {
-        try {
-          setLoading(true);
-          const tripData = await getTrip(tripId);
-          setTrip(tripData);
-          
-          // Fetch user names for all members
-          const allMembers = [tripData.userId, ...(tripData.joiners || [])];
-          const uniqueMembers = [...new Set(allMembers.filter(id => id))];
-          await fetchUserNames(uniqueMembers);
-        } catch (err) {
-          console.error('Error loading trip data:', err);
-        } finally {
-          setLoading(false);
-        }
+    let unsubscribe: (() => void) | undefined;
+    let active = true;
+    const run = async () => {
+      if (!tripId) return;
+      try {
+        setLoading(true);
+        const tripData = await getTrip(tripId);
+        setTrip(tripData);
+        const allMembers = [tripData.userId, ...(tripData.joiners || [])];
+        const uniqueMembers = [...new Set(allMembers.filter(id => id))];
+        await fetchUserNames(uniqueMembers);
+        const splits = await calculatePaymentSplits(tripId);
+        if (active) setPaymentSplits(splits);
+        unsubscribe = subscribeToTripExpenses(tripId, async () => {
+          const updatedSplits = await calculatePaymentSplits(tripId);
+          if (active) setPaymentSplits(updatedSplits);
+        });
+      } catch (err) {
+        console.error('Error loading trip data:', err);
+      } finally {
+        if (active) setLoading(false);
       }
     };
-
-    fetchTripData();
+    run();
+    return () => {
+      active = false;
+      if (unsubscribe) unsubscribe();
+    };
   }, [tripId]);
 
   const getAllMembers = (): string[] => {
@@ -134,6 +144,55 @@ const TripMembersPage: React.FC = () => {
         transition={{ delay: 0.1 }}
         className="max-w-6xl mx-auto px-4 py-6"
       >
+        <div className="mb-4 p-4 bg-amber-50 rounded-lg border border-amber-200">
+          <div className="font-semibold text-amber-800 mb-2">Simple Guide</div>
+          <div className="flex flex-wrap items-center gap-3 text-xs text-amber-800">
+            <span className="flex items-center gap-1">
+              <span className="inline-block w-2 h-2 rounded-full bg-red-500"></span>
+              Pay
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="inline-block w-2 h-2 rounded-full bg-green-500"></span>
+              Get
+            </span>
+            <span className="flex items-center gap-1">
+              <ArrowRight className="w-4 h-4 text-red-600" />
+              Pay to
+            </span>
+            <span className="flex items-center gap-1">
+              <ArrowLeft className="w-4 h-4 text-green-600" />
+              Get from
+            </span>
+          </div>
+        </div>
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.1 }}
+          className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6"
+        >
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">Who Pays Whom</h3>
+          </div>
+          <div className="space-y-2">
+            {Object.entries(paymentSplits).flatMap(([fromUser, data]) => 
+              Object.entries(data.owes).map(([toUser, amount]) => (
+                <div key={`${fromUser}-${toUser}`} className="flex items-center text-sm">
+                  <ArrowRight className="w-4 h-4 mr-1 text-red-600" />
+                  <span className="font-medium">{userNames[fromUser] || fromUser.substring(0, 8) + '...'}</span>
+                  <span className="mx-2">pays</span>
+                  <span className="font-medium">{userNames[toUser] || toUser.substring(0, 8) + '...'}</span>
+                  <span className="ml-2 text-red-700">{formatCurrency(amount)}</span>
+                </div>
+              ))
+            )}
+            {Object.keys(paymentSplits).length === 0 && (
+              <div className="p-3 bg-gray-50 rounded-lg border border-gray-200 text-center text-sm text-gray-600">
+                No payments needed
+              </div>
+            )}
+          </div>
+        </motion.div>
         {/* Members Section */}
         <motion.div 
           initial={{ opacity: 0 }}
@@ -190,9 +249,40 @@ const TripMembersPage: React.FC = () => {
                         <span className="text-gray-600">Role:</span>
                         <span className="font-medium">{isCreator ? 'Creator/Admin' : 'Member'}</span>
                       </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">Status:</span>
-                        <span className="font-medium text-green-600">Active</span>
+                      <div className="space-y-2 mt-3">
+                        {paymentSplits[memberId]?.totalOwing > 0 ? (
+                          <div className="p-3 bg-red-50 rounded-lg border border-red-200">
+                            <div className="font-semibold text-red-700 mb-1">Needs to Pay</div>
+                            <div className="text-lg font-bold text-red-600">
+                              ₹{(paymentSplits[memberId].totalOwing || 0).toFixed(2)}
+                            </div>
+                            {Object.entries(paymentSplits[memberId].owes || {}).map(([toUser, amount]) => (
+                              <div key={toUser} className="text-sm text-red-600 ml-1 mt-1">
+                                <ArrowRight className="inline w-4 h-4 mr-1 text-red-600" />
+                                Pay ₹{amount.toFixed(2)} to {userNames[toUser] || toUser.substring(0, 8) + '...'}
+                              </div>
+                            ))}
+                          </div>
+                        ) : null}
+                        {paymentSplits[memberId]?.totalOwed > 0 ? (
+                          <div className="p-3 bg-green-50 rounded-lg border border-green-200">
+                            <div className="font-semibold text-green-700 mb-1">Will Get Back</div>
+                            <div className="text-lg font-bold text-green-600">
+                              ₹{(paymentSplits[memberId].totalOwed || 0).toFixed(2)}
+                            </div>
+                            {Object.entries(paymentSplits[memberId].owedBy || {}).map(([fromUser, amount]) => (
+                              <div key={fromUser} className="text-sm text-green-600 ml-1 mt-1">
+                                <ArrowLeft className="inline w-4 h-4 mr-1 text-green-600" />
+                                From {userNames[fromUser] || fromUser.substring(0, 8) + '...'}: ₹{amount.toFixed(2)}
+                              </div>
+                            ))}
+                          </div>
+                        ) : null}
+                        {!paymentSplits[memberId] || (paymentSplits[memberId].totalOwing === 0 && paymentSplits[memberId].totalOwed === 0) ? (
+                          <div className="p-3 bg-gray-50 rounded-lg border border-gray-200 text-center text-sm text-gray-600">
+                            All Set! No payments needed
+                          </div>
+                        ) : null}
                       </div>
                     </div>
                   </div>
