@@ -325,7 +325,7 @@ const Compare: React.FC = () => {
                                             <Tooltip 
                                                 formatter={(value, name) => [
                                                     `₹${Number(value).toLocaleString()}`, 
-                                                    name.charAt(0).toUpperCase() + name.slice(1)
+                                                    String(name).charAt(0).toUpperCase() + String(name).slice(1)
                                                 ]}
                                                 labelFormatter={(label) => `Trip: ${label}`}
                                                 contentStyle={{ 

@@ -230,8 +230,8 @@ const SignIn: React.FC = () => {
         <div ref={cardRef} className="relative z-10 w-full md:w-auto max-w-sm md:max-w-md lg:max-w-lg p-4 flex justify-center">
 
           {/* Card */}
-          <div className="w-full animated-border rounded-3xl shadow-xl overflow-hidden relative bg-black bg-opacity-10 backdrop-blur-sm">
-            <div className="p-5 pt-8 animated-border-content">
+          <div className="w-full rounded-3xl shadow-xl overflow-hidden relative bg-white/10 backdrop-blur-md border border-white/20">
+            <div className="p-5 pt-8">
 
               {/* Back Button - visible on mobile */}
               <Link to="/" className="inline-flex items-center text-white hover:text-gray-900 mb-6 transition-colors font-medium">

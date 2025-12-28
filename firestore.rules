@@ -162,6 +162,14 @@ service cloud.firestore {
       allow create, update, delete: if isAdmin();
     }
 
+    /* ================= USER COMMUNITIES ================= */
+    match /userCommunities/{userId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      match /communities/{communityId} {
+        allow read, create, update, delete: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+
     /* ================= CHATS ================= */
 
     match /chats/{chatId} {
@@ -180,7 +188,15 @@ service cloud.firestore {
           request.auth.uid in
           get(/databases/$(database)/documents/chats/$(chatId)).data.participants;
 
-        allow update, delete: if request.auth != null &&
+        // Allow participants to update delivery/read status fields
+        allow update: if request.auth != null &&
+          request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants &&
+          request.resource.data.diff(resource.data)
+            .affectedKeys()
+            .hasOnly(['status', 'readAt', 'deliveredAt']);
+
+        // Only the sender can delete their message
+        allow delete: if request.auth != null &&
           request.auth.uid == resource.data.userId;
       }
     }

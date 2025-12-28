@@ -369,13 +369,22 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                 <h2 className="text-2xl font-bold text-gray-800 mb-6">Your Daily Itinerary</h2>
                 <div className="space-y-8">
                     {editedData.dailyItinerary.map((day, dayIndex) => (
-                        <div key={day.day} ref={el => dayRefs.current[day.day] = el!} className="border-l-4 pl-6 relative" style={{ borderColor: COLORS.primary }}>
+                        <div
+                            key={day.day}
+                            ref={(el) => { dayRefs.current[day.day] = el as HTMLDivElement | null; }}
+                            className="border-l-4 pl-6 relative"
+                            style={{ borderColor: COLORS.primary }}
+                        >
                             <div className="absolute -left-[11px] top-0 rounded-full w-5 h-5 border-4 border-white" style={{ backgroundColor: COLORS.primary }}></div>
                             <h3 className="text-xl font-bold text-gray-800 mb-1">Day {day.day}: {day.theme}</h3>
                             
                             <div className="space-y-4 mt-4">
                                 {day.activities.map((act, actIndex) => (
-                                    <div key={`${day.day}-${actIndex}`} ref={el => activityRefs.current[`${day.day}-${actIndex}`] = el!} className={`bg-gray-50 p-4 rounded-xl border border-gray-100 transition-all ${isEditing ? 'hover:border-blue-300' : 'hover:bg-slate-50'}`}>
+                                    <div
+                                        key={`${day.day}-${actIndex}`}
+                                        ref={(el) => { activityRefs.current[`${day.day}-${actIndex}`] = el as HTMLDivElement | null; }}
+                                        className={`bg-gray-50 p-4 rounded-xl border border-gray-100 transition-all ${isEditing ? 'hover:border-blue-300' : 'hover:bg-slate-50'}`}
+                                    >
                                         
                                         {/* Activity Header: Time & Cost */}
                                         <div className="flex justify-between items-start mb-2">
