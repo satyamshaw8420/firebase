@@ -313,17 +313,34 @@ const CreateTrip: React.FC = () => {
     <div className="min-h-screen bg-gray-50 py-12 px-4 font-sans">
       <Toaster position="top-right" richColors />
       <div className="max-w-4xl mx-auto">
-        <div className="text-center mb-10">
-          <h1 className={`text-4xl font-extrabold text-[${COLORS.primary}] mb-4 tracking-tight`}>
+        <div className="relative mb-10 rounded-3xl overflow-hidden bg-gradient-to-br from-emerald-50 via-teal-50 to-sky-50 border border-emerald-100">
+          <div className="absolute -top-10 -left-10 w-56 h-56 bg-emerald-200/40 blur-3xl rounded-full"></div>
+          <div className="absolute -bottom-12 -right-16 w-72 h-72 bg-sky-200/40 blur-3xl rounded-full"></div>
+          <div className="relative px-8 py-10 text-center">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 mb-4 rounded-full bg-emerald-500/10 text-emerald-700 text-sm font-semibold border border-emerald-400/20">
+              AI Trip Planner
+            </div>
+            <h1 className="text-4xl font-extrabold tracking-tight bg-gradient-to-r from-gray-900 via-emerald-800 to-teal-700 bg-clip-text text-transparent mb-3">
               {editingId ? 'Edit Your Trip' : 'Plan Your Ultimate Journey'}
-          </h1>
-          <p className="text-gray-600 text-lg">Tell us where, when, and how—we'll handle the rest.</p>
+            </h1>
+            <p className="text-gray-700 text-lg">Tell us where, when, and how—we'll handle the rest.</p>
+            <div className="mt-6 flex flex-wrap justify-center gap-3">
+              <div className="inline-flex items-center gap-2 px-3 py-2 rounded-full bg-white/70 backdrop-blur text-gray-700 text-sm border border-gray-200">
+                <Plane className="w-4 h-4 text-emerald-600" /> Smart routes
+              </div>
+              <div className="inline-flex items-center gap-2 px-3 py-2 rounded-full bg-white/70 backdrop-blur text-gray-700 text-sm border border-gray-200">
+                <Wallet className="w-4 h-4 text-emerald-600" /> Budget-aware
+              </div>
+              <div className="inline-flex items-center gap-2 px-3 py-2 rounded-full bg-white/70 backdrop-blur text-gray-700 text-sm border border-gray-200">
+                <Users className="w-4 h-4 text-emerald-600" /> Collaborative
+              </div>
+            </div>
+          </div>
         </div>
 
         <div className="bg-white rounded-3xl shadow-xl overflow-hidden border border-gray-100">
-          {/* Progress Bar Aesthetic */}
-          <div className="h-2 w-full bg-gray-100">
-              <div className={`h-full bg-[${COLORS.secondary}] w-1/3`}></div>
+          <div className="h-2 w-full bg-gradient-to-r from-gray-100 to-gray-200">
+              <div className={`h-full w-1/3 bg-gradient-to-r from-emerald-500 to-sky-500`}></div>
           </div>
           
           <div className="p-8 space-y-12">
