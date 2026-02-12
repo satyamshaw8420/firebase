@@ -1,8 +1,10 @@
 import { auth } from './firebaseConfig';
-import { 
-  signInWithPopup, 
-  GoogleAuthProvider, 
-  signOut, 
+import {
+  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
+  GoogleAuthProvider,
+  signOut,
   onAuthStateChanged,
   setPersistence,
   browserLocalPersistence,
@@ -11,6 +13,9 @@ import {
 
 // Google Auth Provider
 const googleProvider = new GoogleAuthProvider();
+googleProvider.setCustomParameters({
+  prompt: 'select_account' // Forces account selection
+});
 
 // Set persistence to local storage
 setPersistence(auth, browserLocalPersistence)
@@ -18,26 +23,44 @@ setPersistence(auth, browserLocalPersistence)
     console.error('Error setting persistence:', error);
   });
 
-// Sign in with Google
+// Handle redirect result (call this on app load)
+export const handleRedirectResult = async () => {
+  try {
+    const result = await getRedirectResult(auth);
+    if (result) {
+      return result.user;
+    }
+    return null;
+  } catch (error) {
+    console.error('Error handling redirect result:', error);
+    throw error;
+  }
+};
+
+// Sign in with Google (Popup)
 export const signInWithGooglePopup = async () => {
   try {
-    // Add additional configuration to handle popup issues
-    googleProvider.setCustomParameters({
-      prompt: 'select_account' // Forces account selection
-    });
-    
     const result = await signInWithPopup(auth, googleProvider);
     return result.user;
   } catch (error: any) {
-    console.error('Error signing in with Google:', error);
-    
-    // Handle specific error codes
+    // Silently log common user actions
     if (error.code === 'auth/popup-closed-by-user') {
       console.log('Popup was closed by the user');
     } else if (error.code === 'auth/cancelled-popup-request') {
       console.log('Popup request was cancelled');
+    } else {
+      console.error('Error signing in with Google Popup:', error);
     }
-    
+    throw error;
+  }
+};
+
+// Sign in with Google (Redirect) - More robust for mobie/popup-blockers
+export const signInWithGoogleRedirect = async () => {
+  try {
+    await signInWithRedirect(auth, googleProvider);
+  } catch (error) {
+    console.error('Error signing in with Google Redirect:', error);
     throw error;
   }
 };
