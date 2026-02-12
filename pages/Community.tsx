@@ -14,6 +14,8 @@ import { getDiscoverableTrips, joinTrip } from '../firebase/tripService';
 import Picker from 'emoji-picker-react';
 import ChatView from '../components/ChatView';
 import { toast, Toaster } from 'sonner';
+import { getTravelImage } from '../services/unsplashService';
+import UnsplashImage from '../components/UnsplashImage';
 
 const { Link } = ReactRouterDOM;
 // --- COMPONENTS ---
@@ -27,7 +29,7 @@ const getGmailAvatar = (name: string, userId?: string, size: number = 150) => {
         // Generate a Gmail-style avatar URL
         return `https://ui-avatars.com/api/?name=${encodeURIComponent(initials)}&size=${size}&background=random&color=ffffff`;
     }
-    
+
     // If no name, use userId
     const identifier = userId || 'U';
     const initials = identifier.substring(0, 2).toUpperCase();
@@ -59,16 +61,40 @@ export default function Community() {
         name: '',
         members: [] as any[]
     });
-        
+
     const navigate = useNavigate();
-        
+
     const [showRightSidebar, setShowRightSidebar] = useState(false);
+    const [userMemberships, setUserMemberships] = useState<{ [key: string]: boolean }>({});
+
+    // Check user membership for all communities
+    useEffect(() => {
+        if (!currentUser || !communities.length) return;
+
+        const checkMemberships = async () => {
+            const memberships: { [key: string]: boolean } = {};
+
+            for (const community of communities) {
+                try {
+                    const isMemberFound = await isCommunityMember(community.id, currentUser.uid);
+                    memberships[community.id] = isMemberFound;
+                } catch (error) {
+                    console.error(`Error checking membership for ${community.id}:`, error);
+                    memberships[community.id] = false;
+                }
+            }
+
+            setUserMemberships(memberships);
+        };
+
+        checkMemberships();
+    }, [currentUser, communities]);
 
     // Fetch communities from Firestore with real-time updates
     useEffect(() => {
         const unsubscribe = subscribeToCollection('communities', (communityData) => {
             setCommunities(communityData);
-            
+
             // If we're currently viewing a community that was deleted, clear the selection
             if (selectedCommunity) {
                 const communityStillExists = communityData.some((c: any) => c.id === selectedCommunity.id);
@@ -223,7 +249,7 @@ export default function Community() {
                 imageUrl: ''
             });
             setShowCreateCommunity(false);
-            
+
             // Show success message
             alert(`Community "${newCommunity.name}" created successfully!`);
         } catch (error) {
@@ -244,15 +270,15 @@ export default function Community() {
             await deleteCommunity(communityId);
             // Show success message
             toast.success(`Community "${communityName}" deleted successfully! All members have been removed.`);
-            
+
             // If the deleted community was the selected one, clear selection and members
             if (selectedCommunity && selectedCommunity.id === communityId) {
                 setSelectedCommunity(null);
                 setCommunityMembers([]); // Instantly clear members
             }
-            
+
             // Also remove the community from the communities list
-            setCommunities(prevCommunities => 
+            setCommunities(prevCommunities =>
                 prevCommunities.filter(community => community.id !== communityId)
             );
         } catch (error) {
@@ -292,10 +318,10 @@ export default function Community() {
                             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${activeTab === 'profile' ? 'bg-emerald-50 text-emerald-600 font-bold' : 'text-gray-600 hover:bg-gray-50'}`}
                         >
                             <div className="w-5 h-5 rounded-full overflow-hidden border border-gray-300">
-                                <img 
-                                    src={user?.avatar || getGmailAvatar(user?.name, user?.uid, 150)} 
-                                    alt="Profile" 
-                                    className="w-full h-full object-cover" 
+                                <img
+                                    src={user?.avatar || getGmailAvatar(user?.name, user?.uid, 150)}
+                                    alt="Profile"
+                                    className="w-full h-full object-cover"
                                     onError={(e) => {
                                         // If the image fails to load, fall back to the Gmail-style avatar
                                         const target = e.target as HTMLImageElement;
@@ -321,7 +347,7 @@ export default function Community() {
 
             {/* MAIN CONTENT AREA */}
             <main className="flex-1 max-w-3xl mx-auto w-full px-2">
-                {activeTab === 'feed' && <FeedView posts={posts} toggleLike={toggleLike} setSelectedUser={setSelectedUser} allUsers={allUsers} currentUser={currentUser} setShowCreateCommunity={setShowCreateCommunity} communities={communities} localGuides={localGuides} communityMembers={communityMembers} showAllMembers={showAllMembers} setShowAllMembers={setShowAllMembers} handleDeleteCommunity={handleDeleteCommunity} setSelectedCommunity={setSelectedCommunity} setActiveTab={setActiveTab} />}
+                {activeTab === 'feed' && <FeedView posts={posts} toggleLike={toggleLike} setSelectedUser={setSelectedUser} allUsers={allUsers} currentUser={currentUser} setShowCreateCommunity={setShowCreateCommunity} communities={communities} localGuides={localGuides} communityMembers={communityMembers} showAllMembers={showAllMembers} setShowAllMembers={setShowAllMembers} handleDeleteCommunity={handleDeleteCommunity} setSelectedCommunity={setSelectedCommunity} setActiveTab={setActiveTab} userMemberships={userMemberships} setUserMemberships={setUserMemberships} />}
                 {activeTab === 'profile' && <ProfileView user={user} setUser={setUser} />}
                 {activeTab === 'chat' && <ChatView />}
 
@@ -336,13 +362,20 @@ export default function Community() {
                             if (currentUser) {
                                 // Show loading toast
                                 const toastId = toast.loading('Joining community...');
-                                
+
                                 try {
                                     await joinCommunity(selectedCommunity.id, currentUser.uid, currentUser);
+
+                                    // Update local state instantly for real-time change
+                                    setUserMemberships(prev => ({
+                                        ...prev,
+                                        [selectedCommunity.id]: true
+                                    }));
+
                                     toast.success(`Welcome! You have successfully joined ${selectedCommunity.name}.`, {
                                         id: toastId
                                     });
-                                    
+
                                     // Force refresh of community members to show the current user as a member
                                     // This will trigger the useEffect in CommunityDetailView to recheck membership status
                                     const updatedMembers = await getCommunityMembers(selectedCommunity.id);
@@ -359,17 +392,17 @@ export default function Community() {
                             if (currentUser) {
                                 // Show loading toast
                                 const toastId = toast.loading('Leaving community...');
-                                
+
                                 try {
                                     await leaveCommunity(selectedCommunity.id, currentUser.uid);
                                     toast.success(`You have successfully left ${selectedCommunity.name}.`, {
                                         id: toastId
                                     });
-                                    
+
                                     // Force refresh of community members after leaving
                                     const updatedMembers = await getCommunityMembers(selectedCommunity.id);
                                     setCommunityMembers(updatedMembers);
-                                    
+
                                     // Navigate back to main view after successfully leaving
                                     setSelectedCommunity(null);
                                 } catch (error) {
@@ -387,7 +420,7 @@ export default function Community() {
                         navigate={navigate}
                     />
                 )}
-                
+
                 {/* Main Communities Grid - shown when no specific community is selected */}
                 {!selectedCommunity && activeTab !== 'feed' && activeTab !== 'profile' && activeTab !== 'chat' && (
                     <div className="p-4 md:p-6">
@@ -396,7 +429,7 @@ export default function Community() {
                                 <h2 className="text-3xl font-bold text-gray-900 mb-1">Travel Communities</h2>
                                 <p className="text-gray-600">Connect with fellow travelers and share experiences</p>
                             </div>
-                            <button 
+                            <button
                                 onClick={() => setShowCreateCommunity(true)}
                                 className="px-6 py-3 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-xl font-semibold hover:from-emerald-600 hover:to-teal-600 flex items-center gap-2 transition-all duration-200 shadow-sm hover:shadow-lg transform hover:-translate-y-0.5"
                             >
@@ -404,25 +437,23 @@ export default function Community() {
                                 Create Community
                             </button>
                         </div>
-                        
+
                         {/* Communities Grid */}
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                             {communities.map((community: any) => (
-                                <div 
+                                <div
                                     key={community.id}
                                     className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-xl transition-all duration-300 cursor-pointer group hover:-translate-y-1"
                                     onClick={() => setSelectedCommunity(community)}
                                 >
                                     <div className="flex items-center gap-4 mb-4">
                                         <div className="relative">
-                                            <img 
-                                                src={community.imageUrl || getGmailAvatar(community.name, community.id, 200)} 
-                                                className="w-16 h-16 rounded-xl object-cover group-hover:scale-105 transition-transform duration-200" 
-                                                alt={community.name} 
-                                                onError={(e) => {
-                                                    const target = e.target as HTMLImageElement;
-                                                    target.src = getGmailAvatar(community.name, community.id, 200);
-                                                }}
+                                            <UnsplashImage
+                                                query={community.name}
+                                                className="w-16 h-16 rounded-xl object-cover group-hover:scale-105 transition-transform duration-200"
+                                                alt={community.name}
+                                                width={200}
+                                                height={200}
                                             />
                                             <div className="absolute inset-0 rounded-xl bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200"></div>
                                         </div>
@@ -431,7 +462,7 @@ export default function Community() {
                                             <p className="text-gray-500 text-sm line-clamp-2 mt-1">{community.description}</p>
                                         </div>
                                     </div>
-                                    
+
                                     <div className="flex items-center justify-between text-sm text-gray-500 pt-4 border-t border-gray-100">
                                         <div className="flex items-center gap-2">
                                             <div className="flex items-center gap-1 bg-gray-50 px-2 py-1 rounded-lg">
@@ -565,10 +596,10 @@ export default function Community() {
                                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                                     {communityMembers.map((member: any) => (
                                         <div key={member.id} className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50">
-                                            <img 
-                                                src={member.avatar || member.photoURL || getGmailAvatar(member.name, member.userId, 150)} 
-                                                className="w-12 h-12 rounded-full object-cover" 
-                                                alt={member.name || member.userId} 
+                                            <img
+                                                src={member.avatar || member.photoURL || getGmailAvatar(member.name, member.userId, 150)}
+                                                className="w-12 h-12 rounded-full object-cover"
+                                                alt={member.name || member.userId}
                                             />
                                             <div>
                                                 <h4 className="font-bold text-gray-900">{member.name || 'Traveler'}</h4>
@@ -582,7 +613,7 @@ export default function Community() {
                     </div>
                 )}
 
-                
+
 
                 {/* User Details Modal */}
                 {selectedUser && (
@@ -689,8 +720,8 @@ export default function Community() {
                 <button onClick={() => setActiveTab('feed')} className={`${activeTab === 'feed' ? 'text-emerald-600' : 'text-gray-400'}`}><Compass className="w-5 h-5" /></button>
                 <button onClick={() => setActiveTab('chat')} className={`${activeTab === 'chat' ? 'text-emerald-600' : 'text-gray-400'}`}><MessageCircle className="w-5 h-5" /></button>
                 <button onClick={() => setActiveTab('profile')} className={`${activeTab === 'profile' ? 'text-emerald-600' : 'text-gray-400'}`}><Users className="w-5 h-5" /></button>
-                <button 
-                    onClick={() => setShowRightSidebar(true)} 
+                <button
+                    onClick={() => setShowRightSidebar(true)}
                     className="text-gray-400 hover:text-emerald-600 relative"
                 >
                     <div className="relative">
@@ -700,10 +731,10 @@ export default function Community() {
                     </div>
                 </button>
             </div>
-            
+
             {/* Sidebar backdrop - needed for both mobile and desktop, but different behavior */}
             {showRightSidebar && (
-                <div 
+                <div
                     className="fixed inset-0 bg-black bg-opacity-50 z-30"
                     onClick={() => setShowRightSidebar(false)}
                 ></div>
@@ -715,10 +746,10 @@ export default function Community() {
 
 // --- SUB-COMPONENTS ---
 
-      const FeedView = ({ posts, toggleLike, setSelectedUser, allUsers, currentUser, setShowCreateCommunity, communities, localGuides, communityMembers, showAllMembers, setShowAllMembers, handleDeleteCommunity, setSelectedCommunity, setActiveTab }: any) => {
-        const [stories, setStories] = useState<any[]>([]);
-         const [upcomingEvents, setUpcomingEvents] = useState<any[]>([]);
-         const [travelTips, setTravelTips] = useState<any[]>([]);
+const FeedView = ({ posts, toggleLike, setSelectedUser, allUsers, currentUser, setShowCreateCommunity, communities, localGuides, communityMembers, showAllMembers, setShowAllMembers, handleDeleteCommunity, setSelectedCommunity, setActiveTab, userMemberships, setUserMemberships }: any) => {
+    const [stories, setStories] = useState<any[]>([]);
+    const [upcomingEvents, setUpcomingEvents] = useState<any[]>([]);
+    const [travelTips, setTravelTips] = useState<any[]>([]);
 
     // Fetch stories from Firestore
     useEffect(() => {
@@ -778,7 +809,7 @@ export default function Community() {
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                     {allUsers.filter(u => u.uid !== currentUser?.uid).slice(0, 6).map((traveler: any) => (
-                        <div 
+                        <div
                             key={`feed-traveler-${traveler.uid}`}
                             className="text-center cursor-pointer group hover:scale-105 transition-transform duration-200"
                             onClick={() => {
@@ -787,10 +818,10 @@ export default function Community() {
                         >
                             <div className="relative mb-2">
                                 <div className="relative inline-block">
-                                    <img 
-                                        src={traveler.avatar || traveler.photoURL || traveler.profilePicture || getGmailAvatar(traveler.name, traveler.uid, 150)} 
-                                        className="w-14 h-14 rounded-full mx-auto object-cover border-2 border-white shadow-sm group-hover:shadow-md transition-shadow duration-200" 
-                                        alt={traveler.name} 
+                                    <img
+                                        src={traveler.avatar || traveler.photoURL || traveler.profilePicture || getGmailAvatar(traveler.name, traveler.uid, 150)}
+                                        className="w-14 h-14 rounded-full mx-auto object-cover border-2 border-white shadow-sm group-hover:shadow-md transition-shadow duration-200"
+                                        alt={traveler.name}
                                         onError={(e) => {
                                             const target = e.target as HTMLImageElement;
                                             target.src = getGmailAvatar(traveler.name, traveler.uid, 150);
@@ -811,7 +842,7 @@ export default function Community() {
                     ))}
                 </div>
             </div>
-            
+
             {/* Create Community Button */}
             <div className="mb-6">
                 <div className="flex justify-between items-center mb-4">
@@ -819,7 +850,7 @@ export default function Community() {
                         <h3 className="font-bold text-gray-900 text-base mb-1">Communities</h3>
                         <p className="text-gray-600 text-xs">Create or join travel communities</p>
                     </div>
-                    <button 
+                    <button
                         onClick={() => setShowCreateCommunity(true)}
                         className="text-emerald-600 font-semibold hover:text-emerald-700 px-3 py-1 rounded-lg hover:bg-emerald-50 transition-colors text-sm flex items-center gap-1"
                     >
@@ -827,12 +858,12 @@ export default function Community() {
                         Create
                     </button>
                 </div>
-                
+
                 {/* Optional: Show a preview of user's communities or suggested communities */}
                 <div className="bg-gradient-to-r from-emerald-50 to-teal-50 rounded-xl p-4 border border-emerald-100">
                     <p className="text-emerald-800 text-sm font-medium mb-2">Start your own travel community!</p>
                     <p className="text-emerald-700 text-xs mb-3">Connect with travelers who share your interests and destinations.</p>
-                    <button 
+                    <button
                         onClick={() => setShowCreateCommunity(true)}
                         className="w-full py-2 bg-emerald-500 text-white rounded-lg font-medium hover:bg-emerald-600 transition-colors text-sm"
                     >
@@ -840,7 +871,7 @@ export default function Community() {
                     </button>
                 </div>
             </div>
-            
+
             {/* Communities Section from Right Panel */}
             <div className="mb-8">
                 <div className="flex justify-between items-center mb-4">
@@ -868,30 +899,45 @@ export default function Community() {
                             <div className="flex gap-1">
                                 {/* Show Join button only for non-creators who are not members */}
                                 {community.createdBy !== currentUser?.uid && (
-                                    <button
-                                        className="text-emerald-500 hover:text-emerald-600 text-xs font-bold"
-                                        onClick={async (e) => {
-                                            e.stopPropagation();
-                                            if (currentUser) {
-                                                // Show loading toast
-                                                const toastId = toast.loading(`Joining ${community.name}...`);
-                                                
-                                                try {
-                                                    await joinCommunity(community.id, currentUser.uid, currentUser);
-                                                    toast.success(`Welcome! You have successfully joined ${community.name}.`, {
-                                                        id: toastId
-                                                    });
-                                                } catch (error) {
-                                                    console.error('Error joining community:', error);
-                                                    toast.error('Failed to join community. Please try again.', {
-                                                        id: toastId
-                                                    });
-                                                }
-                                            }
-                                        }}
-                                    >
-                                        Join
-                                    </button>
+                                    (() => {
+                                        // Check if current user is a member of this community
+                                        const isMember = userMemberships[community.id] || false;
+
+                                        return (
+                                            <button
+                                                className={`text-xs font-bold ${isMember ? 'text-gray-400 cursor-not-allowed' : 'text-emerald-500 hover:text-emerald-600'}`}
+                                                disabled={isMember}
+                                                onClick={async (e) => {
+                                                    e.stopPropagation();
+                                                    if (currentUser && !isMember) {
+                                                        // Show loading toast
+                                                        const toastId = toast.loading(`Joining ${community.name}...`);
+
+                                                        try {
+                                                            await joinCommunity(community.id, currentUser.uid, currentUser);
+
+                                                            // Update local state instantly
+                                                            setUserMemberships(prev => ({
+                                                                ...prev,
+                                                                [community.id]: true
+                                                            }));
+
+                                                            toast.success(`Welcome! You have successfully joined ${community.name}.`, {
+                                                                id: toastId
+                                                            });
+                                                        } catch (error) {
+                                                            console.error('Error joining community:', error);
+                                                            toast.error('Failed to join community. Please try again.', {
+                                                                id: toastId
+                                                            });
+                                                        }
+                                                    }
+                                                }}
+                                            >
+                                                {isMember ? 'Joined' : 'Join'}
+                                            </button>
+                                        );
+                                    })()
                                 )}                                    <button
                                     className="text-gray-400 hover:text-gray-600"
                                     onClick={(e) => {
@@ -977,7 +1023,7 @@ export default function Community() {
                                 <h4 className="font-bold text-sm text-gray-900 truncate">{member.name || 'Traveler'}</h4>
                                 <p className="text-xs text-gray-500 truncate">{member.role || 'member'}</p>
                             </div>
-                            <button 
+                            <button
                                 className="text-emerald-500 hover:text-emerald-600 text-xs font-bold"
                                 onClick={async () => {
                                     if (!currentUser) return;
@@ -985,7 +1031,7 @@ export default function Community() {
                                         // Check if chat already exists
                                         let existingChat = await getExistingChat(currentUser.uid, member.userId);
                                         let chatId;
-                                        
+
                                         if (existingChat) {
                                             chatId = existingChat.id;
                                         } else {
@@ -1007,7 +1053,7 @@ export default function Community() {
                                                 }
                                             );
                                         }
-                                        
+
                                         // Switch to chat tab and open this chat
                                         setActiveTab('chat');
                                     } catch (error) {
@@ -1181,10 +1227,10 @@ const ProfileView = ({ user, setUser }: any) => {
             {/* PROFILE HEADER */}
             <div className="flex flex-col md:flex-row items-center md:items-start gap-8 mb-10">
                 <div className="relative group">
-                    <img 
-                        src={editForm?.avatar || user?.avatar || getGmailAvatar(user?.name, user?.uid, 150)} 
-                        className="w-32 h-32 md:w-40 md:h-40 rounded-2xl object-cover border-4 border-white shadow-xl group-hover:shadow-2xl transition-shadow duration-300" 
-                        alt="profile" 
+                    <img
+                        src={editForm?.avatar || user?.avatar || getGmailAvatar(user?.name, user?.uid, 150)}
+                        className="w-32 h-32 md:w-40 md:h-40 rounded-2xl object-cover border-4 border-white shadow-xl group-hover:shadow-2xl transition-shadow duration-300"
+                        alt="profile"
                         onError={(e) => {
                             // If the image fails to load, fall back to the Gmail-style avatar
                             const target = e.target as HTMLImageElement;
@@ -1225,15 +1271,15 @@ const ProfileView = ({ user, setUser }: any) => {
 
                     <div className="flex flex-wrap justify-center md:justify-start gap-8 mb-5">
                         <div className="text-center md:text-left">
-                            <span className="font-bold text-xl block text-gray-900">{(user?.posts || []).length}</span> 
+                            <span className="font-bold text-xl block text-gray-900">{(user?.posts || []).length}</span>
                             <span className="text-gray-500 text-sm">posts</span>
                         </div>
                         <div className="text-center md:text-left">
-                            <span className="font-bold text-xl block text-gray-900">{user?.followers || 0}</span> 
+                            <span className="font-bold text-xl block text-gray-900">{user?.followers || 0}</span>
                             <span className="text-gray-500 text-sm">followers</span>
                         </div>
                         <div className="text-center md:text-left">
-                            <span className="font-bold text-xl block text-gray-900">{user?.following || 0}</span> 
+                            <span className="font-bold text-xl block text-gray-900">{user?.following || 0}</span>
                             <span className="text-gray-500 text-sm">following</span>
                         </div>
                     </div>
@@ -1376,13 +1422,13 @@ const CommunityDetailView = ({ community, members, currentUser, onBack, onJoin, 
     const [loadingTrips, setLoadingTrips] = useState(true);
     const [onlineStatus, setOnlineStatus] = useState<Record<string, boolean>>({});
     const [creatorInfo, setCreatorInfo] = useState<any>(null);
-    
+
     // Check if community still exists
     useEffect(() => {
         // In a real implementation, this would subscribe to community changes
         // For now, we'll rely on the parent component to handle this
     }, [community]);
-    
+
     // Fetch creator info when community is loaded
     useEffect(() => {
         const fetchCreatorInfo = async () => {
@@ -1408,7 +1454,7 @@ const CommunityDetailView = ({ community, members, currentUser, onBack, onJoin, 
                 }
             }
         };
-        
+
         fetchCreatorInfo();
     }, [community]);
     useEffect(() => {
@@ -1418,7 +1464,7 @@ const CommunityDetailView = ({ community, members, currentUser, onBack, onJoin, 
             });
         }
     }, [currentUser, community]);
-    
+
     // Also update membership status when members list changes
     useEffect(() => {
         if (currentUser && community) {
@@ -1435,12 +1481,12 @@ const CommunityDetailView = ({ community, members, currentUser, onBack, onJoin, 
                 setLoadingTrips(false);
                 return;
             }
-            
+
             try {
                 setLoadingTrips(true);
                 const communityMemberIds = members.map((m: any) => m.userId);
                 const discoverable = await getDiscoverableTrips(communityMemberIds, currentUser?.uid);
-                
+
                 setDiscoverableTrips(discoverable);
             } catch (error) {
                 console.error('Error fetching discoverable trips:', error);
@@ -1451,7 +1497,7 @@ const CommunityDetailView = ({ community, members, currentUser, onBack, onJoin, 
                 setLoadingTrips(false);
             }
         };
-        
+
         fetchDiscoverableTrips();
     }, [isMember, members.length, currentUser]);
     // Simulate real-time online member count updates
@@ -1465,7 +1511,7 @@ const CommunityDetailView = ({ community, members, currentUser, onBack, onJoin, 
                 newOnlineStatus[member.userId] = Math.random() > 0.3;
             });
             setOnlineStatus(newOnlineStatus);
-            
+
             // Count online members
             const onlineCount = Object.values(newOnlineStatus).filter(status => status).length;
             setOnlineMembers(onlineCount);
@@ -1473,7 +1519,7 @@ const CommunityDetailView = ({ community, members, currentUser, onBack, onJoin, 
 
         // Initial simulation
         simulateOnlineStatus();
-        
+
         // Update periodically
         const interval = setInterval(simulateOnlineStatus, 10000);
 
@@ -1486,11 +1532,11 @@ const CommunityDetailView = ({ community, members, currentUser, onBack, onJoin, 
 
         try {
             // Add current user to the group if not already selected
-            const membersWithCreator = newGroup.members.some((m: any) => m.uid === currentUser.uid) 
-                ? newGroup.members 
-                : [...newGroup.members, { 
-                    uid: currentUser.uid, 
-                    name: currentUser.displayName || 'User', 
+            const membersWithCreator = newGroup.members.some((m: any) => m.uid === currentUser.uid)
+                ? newGroup.members
+                : [...newGroup.members, {
+                    uid: currentUser.uid,
+                    name: currentUser.displayName || 'User',
                     avatar: currentUser.photoURL || getGmailAvatar(currentUser.displayName || 'User', currentUser.uid, 150),
                     handle: `@${currentUser.displayName?.toLowerCase().replace(/\s+/g, '') || 'user'}`
                 }];
@@ -1514,7 +1560,7 @@ const CommunityDetailView = ({ community, members, currentUser, onBack, onJoin, 
                 members: []
             });
             setShowCreateGroup(false);
-            
+
             // Show success message
             alert(`Group "${newGroup.name}" created successfully!`);
         } catch (error) {
@@ -1543,23 +1589,21 @@ const CommunityDetailView = ({ community, members, currentUser, onBack, onJoin, 
                     <div className="flex flex-col lg:flex-row lg:items-center lg:gap-8">
                         <div className="flex-shrink-0 mb-6 lg:mb-0">
                             <div className="relative inline-block">
-                                <img
-                                    src={community.imageUrl || getGmailAvatar(community.name, community.id, 200)}
+                                <UnsplashImage
+                                    query={community.name}
                                     className="w-32 h-32 rounded-2xl object-cover border-4 border-white/30 shadow-xl"
                                     alt={community.name}
-                                    onError={(e) => {
-                                        const target = e.target as HTMLImageElement;
-                                        target.src = getGmailAvatar(community.name, community.id, 200);
-                                    }}
+                                    width={400}
+                                    height={400}
                                 />
                                 <div className="absolute inset-0 rounded-2xl bg-gradient-to-t from-black/10 to-transparent"></div>
                             </div>
                         </div>
-                        
+
                         <div className="flex-1 min-w-0">
                             <h2 className="text-3xl font-bold mb-3">{community.name}</h2>
                             <p className="text-emerald-100 text-lg mb-6 leading-relaxed">{community.description}</p>
-                            
+
                             <div className="flex flex-wrap items-center gap-6 mb-6">
 
                                 <div className="flex items-center gap-2 bg-white/20 px-4 py-2 rounded-full">
@@ -1575,7 +1619,7 @@ const CommunityDetailView = ({ community, members, currentUser, onBack, onJoin, 
                                 </div>
                             </div>
                         </div>
-                        
+
                         <div className="flex flex-wrap gap-3">
                             {/* Show join button only for non-members who are not the creator */}
                             {community.createdBy !== currentUser?.uid && !isMember && (
@@ -1586,17 +1630,21 @@ const CommunityDetailView = ({ community, members, currentUser, onBack, onJoin, 
                                     Join Community
                                 </button>
                             )}
-                            
+
                             {/* Show 'Joined' status for members who are not the creator */}
                             {community.createdBy !== currentUser?.uid && isMember && (
                                 <button
                                     onClick={onLeave}
-                                    className="px-6 py-3 bg-red-500 text-white rounded-xl font-semibold hover:bg-red-600 shadow-sm hover:shadow-md transition-all duration-200"
+                                    className="px-6 py-3 bg-emerald-500 text-white rounded-xl font-semibold hover:bg-red-600 shadow-sm hover:shadow-md transition-all duration-200 group flex items-center gap-2"
                                 >
-                                    Leave Community
+                                    <span className="group-hover:hidden flex items-center gap-2">
+                                        <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+                                        Joined
+                                    </span>
+                                    <span className="hidden group-hover:block">Leave Community</span>
                                 </button>
                             )}
-                            
+
                             {/* Show creator-specific actions */}
                             {community.createdBy === currentUser?.uid && (
                                 <>
@@ -1614,7 +1662,7 @@ const CommunityDetailView = ({ community, members, currentUser, onBack, onJoin, 
                                     </button>
                                 </>
                             )}
-                            
+
                             {/* Share button for everyone */}
                             <button
                                 onClick={() => {
@@ -1688,7 +1736,7 @@ const CommunityDetailView = ({ community, members, currentUser, onBack, onJoin, 
                                                 )}
                                             </div>
                                             {currentUser?.uid !== member.userId && (
-                                                <button 
+                                                <button
                                                     className="mt-2 px-3 py-1 bg-emerald-50 text-emerald-600 rounded-lg text-xs font-medium hover:bg-emerald-100 transition-colors duration-200"
                                                     onClick={async () => {
                                                         if (!currentUser) return;
@@ -1696,7 +1744,7 @@ const CommunityDetailView = ({ community, members, currentUser, onBack, onJoin, 
                                                             // Check if chat already exists
                                                             let existingChat = await getExistingChat(currentUser.uid, member.userId);
                                                             let chatId;
-                                                            
+
                                                             if (existingChat) {
                                                                 chatId = existingChat.id;
                                                             } else {
@@ -1718,7 +1766,7 @@ const CommunityDetailView = ({ community, members, currentUser, onBack, onJoin, 
                                                                     }
                                                                 );
                                                             }
-                                                            
+
                                                             // Switch to chat tab and open this chat
                                                             if (setActiveTab) {
                                                                 setActiveTab('chat');
@@ -1737,11 +1785,11 @@ const CommunityDetailView = ({ community, members, currentUser, onBack, onJoin, 
                                     </div>
                                 ))}
                             </div>
-                            
+
                             {/* Show All / Show Less button */}
                             {members.length > 12 && (
                                 <div className="mt-6 text-center">
-                                    <button 
+                                    <button
                                         onClick={() => setShowAllMembers(!showAllMembers)}
                                         className="px-4 py-2 bg-emerald-100 text-emerald-700 rounded-lg font-medium hover:bg-emerald-200 transition-colors duration-200"
                                     >
@@ -1768,7 +1816,7 @@ const CommunityDetailView = ({ community, members, currentUser, onBack, onJoin, 
                             </div>
                             <span className="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full font-medium">{discoverableTrips.length} trips</span>
                         </div>
-                        
+
                         {loadingTrips ? (
                             <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl p-8 flex items-center justify-center border border-gray-200">
                                 <div className="text-center text-gray-500">
@@ -1793,7 +1841,7 @@ const CommunityDetailView = ({ community, members, currentUser, onBack, onJoin, 
                                     // Find the trip creator's info
                                     const creator = members.find((m: any) => m.userId === trip.userId);
                                     const hasJoined = trip.joiners && trip.joiners.includes(currentUser?.uid);
-                                    
+
                                     return (
                                         <div key={trip.id} className="bg-white rounded-2xl border border-gray-200 p-5 hover:shadow-lg transition-all duration-300 group hover:-translate-y-0.5">
                                             <div className="flex justify-between items-start mb-4">
@@ -1808,12 +1856,12 @@ const CommunityDetailView = ({ community, members, currentUser, onBack, onJoin, 
                                                     <div className="text-sm text-gray-500">{trip.dailyItinerary?.length || 0} days</div>
                                                 </div>
                                             </div>
-                                            
+
                                             <div className="flex items-center text-gray-700 mb-4">
                                                 <MapPin className="w-5 h-5 mr-2 text-emerald-500 flex-shrink-0" />
                                                 <span className="truncate font-medium">{trip.destination || 'Destination not set'}</span>
                                             </div>
-                                            
+
                                             <div className="flex items-center justify-between pt-4 border-t border-gray-100">
                                                 <div className="flex items-center gap-3">
                                                     <div className="flex items-center text-sm text-gray-500">
@@ -1829,7 +1877,7 @@ const CommunityDetailView = ({ community, members, currentUser, onBack, onJoin, 
                                                         <span>{trip.dailyItinerary?.length || 0}d</span>
                                                     </div>
                                                 </div>
-                                                <button 
+                                                <button
                                                     onClick={async () => {
                                                         if (hasJoined) {
                                                             // If user has already joined, navigate to trip details
@@ -1842,7 +1890,7 @@ const CommunityDetailView = ({ community, members, currentUser, onBack, onJoin, 
                                                             setDiscoverableTrips(prev =>
                                                                 prev.map(t =>
                                                                     t.id === trip.id
-                                                                        ? { ...t, joiners: [ ...(t.joiners || []), currentUser.uid] }
+                                                                        ? { ...t, joiners: [...(t.joiners || []), currentUser.uid] }
                                                                         : t
                                                                 )
                                                             );
@@ -1906,7 +1954,7 @@ const CommunityDetailView = ({ community, members, currentUser, onBack, onJoin, 
                                     <input
                                         type="text"
                                         value={newGroup.name}
-                                        onChange={(e) => setNewGroup({...newGroup, name: e.target.value})}
+                                        onChange={(e) => setNewGroup({ ...newGroup, name: e.target.value })}
                                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
                                         placeholder="Enter group name"
                                     />
@@ -1939,10 +1987,10 @@ const CommunityDetailView = ({ community, members, currentUser, onBack, onJoin, 
                                                         }}
                                                         className="h-4 w-4 text-emerald-600 rounded"
                                                     />
-                                                    <img 
-                                                        src={member.avatar || member.photoURL || getGmailAvatar(member.name, member.userId, 150)} 
-                                                        className="w-8 h-8 rounded-full object-cover" 
-                                                        alt={member.name || member.userId} 
+                                                    <img
+                                                        src={member.avatar || member.photoURL || getGmailAvatar(member.name, member.userId, 150)}
+                                                        className="w-8 h-8 rounded-full object-cover"
+                                                        alt={member.name || member.userId}
                                                     />
                                                     <div>
                                                         <h4 className="font-medium text-gray-900 text-sm">{member.name || 'Traveler'}</h4>

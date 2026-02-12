@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { 
+import {
   Heart, MessageCircle, Share2, MapPin, MoreHorizontal,
   Image as ImageIcon, Smile, Send, Search, Users,
   UserPlus, Settings, Edit3, Camera, Phone, Mic,
-  Compass, Grid, Bookmark, LogOut, PlusCircle, Plane, Trash2, Paperclip, Download
+  Compass, Grid, Bookmark, LogOut, PlusCircle, Plane, Trash2, Paperclip, Download, X
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { 
+import {
   subscribeToCollection,
   getExistingChat,
   createDirectMessageChat,
@@ -67,6 +67,7 @@ const ChatView = () => {
   const [chats, setChats] = useState<ChatData[]>([]);
   const [filteredChats, setFilteredChats] = useState<ChatData[]>([]);
   const [hiddenChats, setHiddenChats] = useState<string[]>([]);
+  const [clearedChats, setClearedChats] = useState<string[]>([]);
   const [selectedChat, setSelectedChat] = useState<ChatData | null>(null);
   const [msgInput, setMsgInput] = useState('');
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
@@ -76,16 +77,16 @@ const ChatView = () => {
   const [typingUsers, setTypingUsers] = useState<Record<string, any>>({});
   const [messageReactions, setMessageReactions] = useState<Record<string, Record<string, string[]>>>({});
   const [attachmentPreview, setAttachmentPreview] = useState<{ file: File, url: string } | null>(null);
-  const [showEmojiPicker, setShowEmojiPicker] = useState<{messageId?: string, x: number, y: number} | false>(false);
-    const [showGroupMembers, setShowGroupMembers] = useState(false);
-    const [availableMembers, setAvailableMembers] = useState<any[]>([]);
-    const [showTripSelector, setShowTripSelector] = useState(false);
-    const [showNewChatModal, setShowNewChatModal] = useState(false);
-    const [userTrips, setUserTrips] = useState<any[]>([]);
-    const [searchQuery, setSearchQuery] = useState('');
-    const [allUsers, setAllUsers] = useState<any[]>([]);
-    const [recentContacts, setRecentContacts] = useState<any[]>([]);
-    const [communityMembers, setCommunityMembers] = useState<any[]>([]);
+  const [showEmojiPicker, setShowEmojiPicker] = useState<{ messageId?: string, x: number, y: number } | false>(false);
+  const [showGroupMembers, setShowGroupMembers] = useState(false);
+  const [availableMembers, setAvailableMembers] = useState<any[]>([]);
+  const [showTripSelector, setShowTripSelector] = useState(false);
+  const [showNewChatModal, setShowNewChatModal] = useState(false);
+  const [userTrips, setUserTrips] = useState<any[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [allUsers, setAllUsers] = useState<any[]>([]);
+  const [recentContacts, setRecentContacts] = useState<any[]>([]);
+  const [communityMembers, setCommunityMembers] = useState<any[]>([]);
 
   const notificationSoundRef = useRef<HTMLAudioElement | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -97,21 +98,21 @@ const ChatView = () => {
     if (currentUser) {
       const unsubscribe = subscribeToCollection('chats', (chatData: ChatData[]) => {
         // Filter chats that include the current user
-        const userChats = chatData.filter(chat => 
+        const userChats = chatData.filter(chat =>
           chat.participants && chat.participants.includes(currentUser.uid)
         );
         setChats(userChats);
         setFilteredChats(userChats); // Initialize filtered chats
       }, [{ field: 'participants', operator: 'array-contains', value: currentUser.uid }]);
-      
+
       return () => {
         if (unsubscribe) unsubscribe();
       };
     }
   }, [currentUser]);
-  
 
-  
+
+
   // Fetch all users from Firestore
   useEffect(() => {
     const unsubscribe = subscribeToCollection('users', (usersData) => {
@@ -135,7 +136,7 @@ const ChatView = () => {
           }
         }
       });
-      
+
       // Get user details for recent contacts
       const recentUsers = allUsers.filter(user => recentParticipantIds.includes(user.uid));
       setRecentContacts(recentUsers);
@@ -147,50 +148,50 @@ const ChatView = () => {
     if (currentUser) {
       // Clear previous community members when user changes
       setCommunityMembers([]);
-      
+
       // Find all communities the user is part of by looking at their membership
       // This should query the user's community memberships from a 'userCommunities' collection or similar
       const unsubscribe = subscribeToCollection(`userCommunities/${currentUser.uid}/communities`, (userCommunityData) => {
         const userCommunityIds = userCommunityData.map((community: any) => community.communityId);
-        
+
         if (userCommunityIds.length === 0) {
           // If no communities, set to empty array
           setCommunityMembers([]);
           return;
         }
-        
+
         // For each community, fetch its members
         const unsubs: any[] = [];
         let allMembers: any[] = [];
-        
+
         userCommunityIds.forEach(communityId => {
           const unsubscribe = subscribeToCollection(`communities/${communityId}/members`, (membersData) => {
             // Add members from this community to the allMembers array
             // Filter out the current user and the community creator (admin)
-            const newMembers = membersData.filter(newMember => 
+            const newMembers = membersData.filter(newMember =>
               !allMembers.some(prevMember => prevMember.userId === newMember.userId) &&
               newMember.userId !== currentUser.uid // Don't include current user
             );
-            
+
             allMembers = [...allMembers, ...newMembers];
-            
+
             // Separate admins and regular members, excluding the current user
-            const admins = allMembers.filter(member => 
+            const admins = allMembers.filter(member =>
               (member.role === 'admin' || member.isAdmin === true) &&
               member.userId !== currentUser.uid // Ensure current user is not included
             ).filter(member => member.userId !== currentUser.uid); // Double check to exclude current user
-            
-            const regularMembers = allMembers.filter(member => 
+
+            const regularMembers = allMembers.filter(member =>
               member.role !== 'admin' && member.isAdmin !== true &&
               member.userId !== currentUser.uid // Ensure current user is not included
             );
-            
+
             // Combine with admins first, then regular members
             setCommunityMembers([...admins, ...regularMembers]);
           });
           unsubs.push(unsubscribe);
         });
-        
+
         // Cleanup function for community member subscriptions
         return () => {
           unsubs.forEach(unsub => {
@@ -198,7 +199,7 @@ const ChatView = () => {
           });
         };
       });
-      
+
       // Cleanup function for user community subscription
       return () => {
         unsubscribe();
@@ -209,50 +210,72 @@ const ChatView = () => {
     }
   }, [currentUser]);
 
-  // Filter chats based on search query and hidden chats
+  // Filter chats based on search query and hidden/cleared chats
   useEffect(() => {
     if (!searchQuery.trim()) {
-      setFilteredChats(chats.filter(chat => !hiddenChats.includes(chat.id)));
+      // Show chats that are NOT hidden and NOT cleared
+      setFilteredChats(chats.filter(chat => !hiddenChats.includes(chat.id) && !clearedChats.includes(chat.id)));
     } else {
       const query = searchQuery.toLowerCase();
       const filtered = chats.filter(chat => {
-        // Exclude hidden chats
-        if (hiddenChats.includes(chat.id)) return false;
-        
+        // Only exclude hidden/cleared chats if NOT searching
+        // if (hiddenChats.includes(chat.id) || clearedChats.includes(chat.id)) return false;
+
         if (chat.isGroup) {
           // For group chats, search by group name
           return chat.groupName?.toLowerCase().includes(query);
         } else {
           // For direct messages, search by participant name
           const participant = Object.values(chat.participantData).find((p: any) => p.uid !== currentUser?.uid);
-          return participant?.name?.toLowerCase().includes(query) || 
-                 participant?.handle?.toLowerCase().includes(query);
+          return participant?.name?.toLowerCase().includes(query) ||
+            participant?.handle?.toLowerCase().includes(query);
         }
       });
       setFilteredChats(filtered);
     }
-  }, [searchQuery, chats, currentUser, hiddenChats]);
+  }, [searchQuery, chats, currentUser, hiddenChats, clearedChats]);
+
+  // Auto-unhide/un-clear chat when selected
+  useEffect(() => {
+    if (selectedChat) {
+      if (hiddenChats.includes(selectedChat.id)) {
+        setHiddenChats(prev => prev.filter(id => id !== selectedChat.id));
+      }
+      if (clearedChats.includes(selectedChat.id)) {
+        setClearedChats(prev => prev.filter(id => id !== selectedChat.id));
+      }
+    }
+  }, [selectedChat, hiddenChats, clearedChats]);
 
   // Subscribe to messages for all chats to track unread counts
   useEffect(() => {
     if (!currentUser?.uid) return;
-    
+
     const unsubs: any[] = [];
-    
+
     // Subscribe to messages for each chat
     chats.forEach(chat => {
       const unsubscribe = subscribeToCollection(`chats/${chat.id}/messages`, (messages) => {
         // Calculate unread messages for this chat
-        const unreadCount = messages.filter((msg: any) => 
-          msg.senderId !== currentUser.uid && 
+        const unreadCount = messages.filter((msg: any) =>
+          msg.senderId !== currentUser.uid &&
           msg.status !== 'read'
         ).length;
-        
+
         setUnreadCounts(prev => ({
           ...prev,
           [chat.id]: unreadCount
         }));
-        
+
+        // If there's a new message, unhide/un-clear the chat
+        if (messages.length > 0) {
+          const lastMessage = messages[messages.length - 1];
+          if (lastMessage.senderId !== currentUser.uid) {
+            setHiddenChats(prev => prev.filter(id => id !== chat.id));
+            setClearedChats(prev => prev.filter(id => id !== chat.id));
+          }
+        }
+
         // If this is the selected chat, also update chat history and mark messages as read
         if (selectedChat && selectedChat.id === chat.id) {
           // Transform messages to our format
@@ -265,9 +288,9 @@ const ChatView = () => {
             timestamp: msg.createdAt?.toDate() || new Date(),
             status: msg.status || 'sent'
           }));
-          
+
           setChatHistory(formattedMessages);
-          
+
           // Mark messages as read
           messages.forEach(msg => {
             if (msg.status !== 'read' && msg.senderId !== currentUser.uid) {
@@ -276,10 +299,10 @@ const ChatView = () => {
           });
         }
       }, [], 'createdAt');
-      
+
       unsubs.push(unsubscribe);
     });
-    
+
     // Cleanup function
     return () => {
       unsubs.forEach(unsub => {
@@ -301,10 +324,10 @@ const ChatView = () => {
         createdAt: new Date(),
         status: 'sent'
       };
-      
+
       // Send message to Firebase
       await addDirectMessage(selectedChat.id, messageData);
-      
+
       // Clear input
       setMsgInput('');
       setAttachmentPreview(null);
@@ -315,7 +338,7 @@ const ChatView = () => {
 
   const handleDeleteMessage = async (messageId: string, forEveryone: boolean = false) => {
     if (!selectedChat || !currentUser) return;
-  
+
     try {
       if (forEveryone) {
         // Delete message for everyone using Firebase
@@ -359,7 +382,7 @@ const ChatView = () => {
 
       // Send message to Firebase
       await addDirectMessage(selectedChat.id, tripMessage);
-      
+
       // Close the trip selector
       setShowTripSelector(false);
     } catch (error) {
@@ -371,12 +394,12 @@ const ChatView = () => {
 
 
 
-  const handleRemoveGroupChat = (chatId: string, e: React.MouseEvent) => {
+  const handleHideChat = (chatId: string, e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent chat selection
-    
-    if (window.confirm('Are you sure you want to remove this group chat from your view? You can rejoin it later.')) {
+
+    if (window.confirm('Are you sure you want to remove this chat from your view? You can find it again by searching.')) {
       setHiddenChats(prev => [...prev, chatId]);
-      
+
       // If this was the selected chat, deselect it
       if (selectedChat && selectedChat.id === chatId) {
         setSelectedChat(null);
@@ -410,12 +433,12 @@ const ChatView = () => {
     if (selectedChat?.isGroup && selectedChat?.communityId) {
       const unsubscribe = subscribeToCollection('communities/' + selectedChat.communityId + '/members', (members) => {
         // Filter out members already in the group
-        const available = members.filter((member: any) => 
+        const available = members.filter((member: any) =>
           !selectedChat.participants.includes(member.userId)
         );
         setAvailableMembers(available);
       });
-      
+
       return () => {
         if (unsubscribe) unsubscribe();
       };
@@ -434,7 +457,7 @@ const ChatView = () => {
         }
       }
     };
-    
+
     fetchUserTrips();
   }, [currentUser]);
 
@@ -451,10 +474,10 @@ const ChatView = () => {
         <div className="p-3">
           <div className="bg-gradient-to-r from-gray-100 to-emerald-100 rounded-lg flex items-center px-3 py-2 border border-emerald-200">
             <Search className="w-4 h-4 text-gray-400 mr-2" />
-            <input 
-              type="text" 
-              placeholder="Search chats..." 
-              className="bg-transparent outline-none text-sm w-full" 
+            <input
+              type="text"
+              placeholder="Search chats..."
+              className="bg-transparent outline-none text-sm w-full"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -475,10 +498,10 @@ const ChatView = () => {
                     className={`flex items-center gap-2.5 p-3 hover:bg-gray-50 cursor-pointer transition-colors ${selectedChat?.id === chat.id ? 'bg-emerald-50' : ''}`}
                   >
                     <div className="relative">
-                      <img 
-                        src={chat.groupAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(chat.groupName.substring(0, 2).toUpperCase())}&size=150&background=random&color=ffffff`} 
-                        className="w-10 h-10 rounded-full object-cover" 
-                        alt="group avatar" 
+                      <img
+                        src={chat.groupAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(chat.groupName.substring(0, 2).toUpperCase())}&size=150&background=random&color=ffffff`}
+                        className="w-10 h-10 rounded-full object-cover"
+                        alt="group avatar"
                         onError={(e) => {
                           // If the image fails to load, fall back to the Gmail-style avatar
                           const target = e.target as HTMLImageElement;
@@ -504,12 +527,12 @@ const ChatView = () => {
                           {unreadCounts[chat.id] > 99 ? '99+' : unreadCounts[chat.id]}
                         </div>
                       )}
-                      <button 
-                        onClick={(e) => handleRemoveGroupChat(chat.id, e)}
+                      <button
+                        onClick={(e) => handleHideChat(chat.id, e)}
                         className="text-gray-400 hover:text-red-500 p-1"
                         title="Remove from view"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <X className="w-4 h-4" />
                       </button>
                     </div>
                   </div>
@@ -517,45 +540,54 @@ const ChatView = () => {
               }
             </div>
           </div>
-          
-          {/* Hidden Group Chats Section */}
+
+          {/* Hidden Chats Section */}
           {hiddenChats.length > 0 && (
             <div className="mb-4">
               <div className="flex justify-between items-center px-3 py-2">
-                <h3 className="font-bold text-xs text-gray-500 uppercase tracking-wider">Hidden Group Chats</h3>
-                <button 
+                <h3 className="font-bold text-xs text-gray-500 uppercase tracking-wider">Hidden Chats</h3>
+                <button
                   className="text-xs text-emerald-600 hover:text-emerald-700"
-                  onClick={() => setHiddenChats([])}
+                  onClick={() => {
+                    if (window.confirm('Delete all hidden chats from sidebar? They will only reappear if you search for them.')) {
+                      setClearedChats(prev => [...prev, ...hiddenChats]);
+                      setHiddenChats([]);
+                    }
+                  }}
                 >
                   Clear All
                 </button>
               </div>
               <div className="space-y-1">
                 {chats
-                  .filter(chat => chat.isGroup && hiddenChats.includes(chat.id))
+                  .filter(chat => hiddenChats.includes(chat.id))
                   .map(chat => (
                     <div
                       key={chat.id}
                       className="flex items-center gap-2.5 p-3 bg-gray-50"
                     >
                       <div className="relative">
-                        <img 
-                          src={chat.groupAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(chat.groupName.substring(0, 2).toUpperCase())}&size=150&background=random&color=ffffff`} 
-                          className="w-10 h-10 rounded-full object-cover" 
-                          alt="group avatar" 
-                          onError={(e) => {
-                            // If the image fails to load, fall back to the Gmail-style avatar
-                            const target = e.target as HTMLImageElement;
-                            const groupName = chat.groupName || 'Group';
-                            target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(groupName.substring(0, 2).toUpperCase())}&size=150&background=random&color=ffffff`;
-                          }}
-                        />
+                        {chat.isGroup ? (
+                          <img
+                            src={chat.groupAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent((chat.groupName || 'G').substring(0, 2).toUpperCase())}&size=150&background=random&color=ffffff`}
+                            className="w-10 h-10 rounded-full object-cover"
+                            alt="group avatar"
+                          />
+                        ) : (
+                          <img
+                            src={chat.participantData ? Object.values(chat.participantData).find((p: any) => p.uid !== currentUser?.uid)?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent((Object.values(chat.participantData).find((p: any) => p.uid !== currentUser?.uid)?.name || 'U').substring(0, 2).toUpperCase())}&size=150&background=random&color=ffffff` : 'https://ui-avatars.com/api/?name=U&size=150&background=random&color=ffffff'}
+                            className="w-10 h-10 rounded-full object-cover"
+                            alt="avatar"
+                          />
+                        )}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h4 className="font-semibold text-sm truncate text-gray-500">{chat.groupName || 'Group Chat'}</h4>
+                        <h4 className="font-semibold text-sm truncate text-gray-500">
+                          {chat.isGroup ? (chat.groupName || 'Group Chat') : (chat.participantData ? Object.values(chat.participantData).find((p: any) => p.uid !== currentUser?.uid)?.name : 'Chat Partner')}
+                        </h4>
                         <p className="text-xs text-gray-400 truncate">Hidden from view</p>
                       </div>
-                      <button 
+                      <button
                         onClick={() => {
                           setHiddenChats(prev => prev.filter(id => id !== chat.id));
                         }}
@@ -569,7 +601,7 @@ const ChatView = () => {
               </div>
             </div>
           )}
-          
+
           {/* Direct Messages Section */}
           <div>
             <h3 className="font-bold text-xs text-gray-500 px-3 py-2 uppercase tracking-wider">Direct Messages</h3>
@@ -580,13 +612,13 @@ const ChatView = () => {
                   <div
                     key={chat.id}
                     onClick={() => setSelectedChat(chat)}
-                    className={`flex items-center gap-2.5 p-3 hover:bg-gray-50 cursor-pointer transition-colors ${selectedChat?.id === chat.id ? 'bg-emerald-50' : ''}`}
+                    className={`flex items-center gap-2.5 p-3 hover:bg-gray-50 cursor-pointer transition-colors group ${selectedChat?.id === chat.id ? 'bg-emerald-50' : ''}`}
                   >
                     <div className="relative">
-                      <img 
-                        src={chat.participantData ? Object.values(chat.participantData).find((p: any) => p.uid !== currentUser?.uid)?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent((Object.values(chat.participantData).find((p: any) => p.uid !== currentUser?.uid)?.name || 'U').substring(0, 2).toUpperCase())}&size=150&background=random&color=ffffff` : 'https://ui-avatars.com/api/?name=U&size=150&background=random&color=ffffff'} 
-                        className="w-10 h-10 rounded-full object-cover" 
-                        alt="avatar" 
+                      <img
+                        src={chat.participantData ? Object.values(chat.participantData).find((p: any) => p.uid !== currentUser?.uid)?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent((Object.values(chat.participantData).find((p: any) => p.uid !== currentUser?.uid)?.name || 'U').substring(0, 2).toUpperCase())}&size=150&background=random&color=ffffff` : 'https://ui-avatars.com/api/?name=U&size=150&background=random&color=ffffff'}
+                        className="w-10 h-10 rounded-full object-cover"
+                        alt="avatar"
                         onError={(e) => {
                           // If the image fails to load, fall back to the Gmail-style avatar
                           const target = e.target as HTMLImageElement;
@@ -606,11 +638,20 @@ const ChatView = () => {
                         {chat.lastMessage || 'No messages yet'}
                       </p>
                     </div>
-                    {unreadCounts[chat.id] > 0 && (
-                      <div className="flex items-center justify-center bg-emerald-500 text-white text-xs rounded-full w-5 h-5">
-                        {unreadCounts[chat.id] > 99 ? '99+' : unreadCounts[chat.id]}
-                      </div>
-                    )}
+                    <div className="flex items-center gap-1">
+                      {unreadCounts[chat.id] > 0 && (
+                        <div className="flex items-center justify-center bg-emerald-500 text-white text-xs rounded-full w-5 h-5">
+                          {unreadCounts[chat.id] > 99 ? '99+' : unreadCounts[chat.id]}
+                        </div>
+                      )}
+                      <button
+                        onClick={(e) => handleHideChat(chat.id, e)}
+                        className="text-gray-400 hover:text-red-500 p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                        title="Remove from view"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
                 ))
               }
@@ -634,10 +675,10 @@ const ChatView = () => {
               {selectedChat.isGroup ? (
                 <>
                   <div className="relative">
-                    <img 
-                      src={selectedChat.groupAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(selectedChat.groupName.substring(0, 2).toUpperCase())}&size=150&background=random&color=ffffff`} 
-                      className="w-9 h-9 rounded-full object-cover" 
-                      alt="group avatar" 
+                    <img
+                      src={selectedChat.groupAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(selectedChat.groupName.substring(0, 2).toUpperCase())}&size=150&background=random&color=ffffff`}
+                      className="w-9 h-9 rounded-full object-cover"
+                      alt="group avatar"
                     />
                   </div>
                   <div>
@@ -647,10 +688,10 @@ const ChatView = () => {
                 </>
               ) : (
                 <>
-                  <img 
-                    src={selectedChat?.participantData ? Object.values(selectedChat.participantData).find((p: any) => p.uid !== currentUser?.uid)?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent((Object.values(selectedChat.participantData).find((p: any) => p.uid !== currentUser?.uid)?.name || 'U').substring(0, 2).toUpperCase())}&size=150&background=random&color=ffffff` : 'https://ui-avatars.com/api/?name=U&size=150&background=random&color=ffffff'} 
-                    className="w-9 h-9 rounded-full object-cover" 
-                    alt="avatar" 
+                  <img
+                    src={selectedChat?.participantData ? Object.values(selectedChat.participantData).find((p: any) => p.uid !== currentUser?.uid)?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent((Object.values(selectedChat.participantData).find((p: any) => p.uid !== currentUser?.uid)?.name || 'U').substring(0, 2).toUpperCase())}&size=150&background=random&color=ffffff` : 'https://ui-avatars.com/api/?name=U&size=150&background=random&color=ffffff'}
+                    className="w-9 h-9 rounded-full object-cover"
+                    alt="avatar"
                     onError={(e) => {
                       // If the image fails to load, fall back to the Gmail-style avatar
                       const target = e.target as HTMLImageElement;
@@ -666,6 +707,13 @@ const ChatView = () => {
               )}
             </div>
             <div className="flex items-center gap-2.5">
+              <button
+                className="text-gray-400 hover:text-red-500 p-1 mr-1"
+                onClick={(e) => handleHideChat(selectedChat.id, e)}
+                title="Hide Conversation"
+              >
+                <X className="w-5 h-5" />
+              </button>
               <div className="hidden sm:flex items-center gap-1 bg-emerald-600 text-white px-2.5 py-1 rounded-md text-[10px] font-bold hover:bg-emerald-700 transition-colors shadow-sm">
                 <Plane className="w-3 h-3" />
                 Plan
@@ -712,9 +760,9 @@ const ChatView = () => {
                     {/* Message Bubble */}
                     <div
                       className={`px-4 py-2 rounded-2xl text-sm ${msg.senderId === currentUser?.uid
-                              ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-br-none shadow-md'
-                              : 'bg-gradient-to-r from-white to-emerald-50 border border-emerald-100 text-gray-800 rounded-bl-none shadow-sm'
-                          }`}
+                        ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-br-none shadow-md'
+                        : 'bg-gradient-to-r from-white to-emerald-50 border border-emerald-100 text-gray-800 rounded-bl-none shadow-sm'
+                        }`}
                     >
                       {/* Check if this is a trip message */}
                       {msg.tripData ? (
@@ -739,7 +787,7 @@ const ChatView = () => {
                               )}
                             </div>
                           </div>
-                          <button 
+                          <button
                             className="text-teal-600 hover:text-teal-800 font-medium text-sm flex-shrink-0"
                             onClick={() => {
                               // In a real app, you would navigate to view the trip details
@@ -811,13 +859,13 @@ const ChatView = () => {
                         style={{ top: showMessageMenu.y, left: showMessageMenu.x }}
                         onClick={(e) => e.stopPropagation()}
                       >
-                        <button 
+                        <button
                           className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
                           onClick={(e) => {
                             console.log('Add emoji reaction for message:', msg.id);
                             setShowMessageMenu(null);
                             const rect = e.currentTarget.getBoundingClientRect();
-                            setShowEmojiPicker({messageId: msg.id, x: rect.left, y: rect.bottom});
+                            setShowEmojiPicker({ messageId: msg.id, x: rect.left, y: rect.bottom });
                           }}
                         >
                           <Smile className="w-4 h-4" />
@@ -947,16 +995,16 @@ const ChatView = () => {
               <div className="relative">
                 <button className="text-gray-400 hover:text-emerald-500" onClick={(e) => {
                   e.stopPropagation();
-                  setShowEmojiPicker(showEmojiPicker ? false : {x: 0, y: 0});
+                  setShowEmojiPicker(showEmojiPicker ? false : { x: 0, y: 0 });
                 }}>
                   <Smile className="w-4 h-4" />
                 </button>
                 {showEmojiPicker && (
                   <div className="fixed inset-0 z-50" onClick={() => setShowEmojiPicker(false)}>
-                    <div 
+                    <div
                       className="absolute bg-white rounded-lg shadow-xl border border-gray-200 overflow-hidden"
-                      style={{ 
-                        top: showEmojiPicker.y, 
+                      style={{
+                        top: showEmojiPicker.y,
                         left: showEmojiPicker.x,
                         transform: 'translateY(10px)'
                       }}
@@ -964,24 +1012,24 @@ const ChatView = () => {
                     >
                       <div className="flex justify-between items-center bg-gradient-to-r from-gray-50 to-emerald-50 px-3 py-2 border-b border-emerald-200">
                         <span className="text-sm font-medium text-gray-700">Emoji Picker</span>
-                        <button 
+                        <button
                           onClick={() => setShowEmojiPicker(false)}
                           className="text-gray-500 hover:text-gray-700"
                         >
                           ✕
                         </button>
                       </div>
-                      <Picker 
+                      <Picker
                         onEmojiClick={(emojiData) => {
                           if (showEmojiPicker.messageId && currentUser?.uid) {
                             console.log('Adding reaction to message:', showEmojiPicker.messageId, emojiData.emoji);
                             setMessageReactions(prev => {
                               const messageId = showEmojiPicker.messageId;
                               if (!messageId) return prev;
-                              
+
                               const currentReactions = prev[messageId] || {};
                               const currentUsers = currentReactions[emojiData.emoji] || [];
-                              
+
                               if (!currentUsers.includes(currentUser.uid)) {
                                 return {
                                   ...prev,
@@ -1037,7 +1085,7 @@ const ChatView = () => {
           </div>
         </div>
       )}
-      
+
       {/* Group Members Modal */}
       {showGroupMembers && selectedChat?.isGroup && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
@@ -1059,14 +1107,14 @@ const ChatView = () => {
                   {selectedChat.participants.map((participantId: string) => {
                     const participant = selectedChat.participantData[participantId];
                     if (!participant) return null;
-                    
+
                     return (
                       <div key={participantId} className="flex items-center justify-between p-3 rounded-lg border border-emerald-200 bg-gradient-to-r from-white to-emerald-50 shadow-sm">
                         <div className="flex items-center gap-3">
-                          <img 
-                            src={participant.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(participant.name.substring(0, 2).toUpperCase())}&size=150&background=random&color=ffffff`} 
-                            className="w-10 h-10 rounded-full object-cover" 
-                            alt={participant.name} 
+                          <img
+                            src={participant.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(participant.name.substring(0, 2).toUpperCase())}&size=150&background=random&color=ffffff`}
+                            className="w-10 h-10 rounded-full object-cover"
+                            alt={participant.name}
                           />
                           <div>
                             <h4 className="font-bold text-gray-900">{participant.name}</h4>
@@ -1081,7 +1129,7 @@ const ChatView = () => {
                   })}
                 </div>
               </div>
-              
+
               {availableMembers.length > 0 && (
                 <div className="mb-6">
                   <h4 className="font-bold text-gray-900 mb-3">Add Members</h4>
@@ -1089,17 +1137,17 @@ const ChatView = () => {
                     {availableMembers.map((member: any) => (
                       <div key={member.id} className="flex items-center justify-between p-3 rounded-lg border border-emerald-200 bg-gradient-to-r from-white to-emerald-50 shadow-sm">
                         <div className="flex items-center gap-3">
-                          <img 
-                            src={member.avatar || member.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent((member.name || 'U').substring(0, 2).toUpperCase())}&size=150&background=random&color=ffffff`} 
-                            className="w-10 h-10 rounded-full object-cover" 
-                            alt={member.name || member.userId} 
+                          <img
+                            src={member.avatar || member.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent((member.name || 'U').substring(0, 2).toUpperCase())}&size=150&background=random&color=ffffff`}
+                            className="w-10 h-10 rounded-full object-cover"
+                            alt={member.name || member.userId}
                           />
                           <div>
                             <h4 className="font-bold text-gray-900">{member.name || 'Traveler'}</h4>
                             <p className="text-sm text-gray-500">{member.handle || member.email}</p>
                           </div>
                         </div>
-                        <button 
+                        <button
                           className="text-emerald-500 hover:text-emerald-700 font-medium text-sm"
                           onClick={async () => {
                             try {
@@ -1130,7 +1178,7 @@ const ChatView = () => {
                   </div>
                 </div>
               )}
-              
+
               <div className="flex justify-end">
                 <button
                   onClick={() => setShowGroupMembers(false)}
@@ -1143,7 +1191,7 @@ const ChatView = () => {
           </div>
         </div>
       )}
-      
+
       {/* Trip Selector Modal */}
       {showTripSelector && (
         <div className="fixed inset-0 bg-gradient-to-br from-emerald-900/30 to-teal-900/30 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
@@ -1164,7 +1212,7 @@ const ChatView = () => {
                   <Plane className="w-12 h-12 text-emerald-400 mx-auto mb-4" />
                   <h4 className="font-bold text-gray-900 mb-2 bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">No trips yet</h4>
                   <p className="text-gray-500 mb-4">Create a trip to share with your friends.</p>
-                  <button 
+                  <button
                     onClick={() => {
                       // In a real app, you might redirect to the create trip page
                       // For now, we'll just close the modal
@@ -1180,8 +1228,8 @@ const ChatView = () => {
                 <div className="space-y-3">
                   <div className="text-sm text-gray-500 mb-2">Select a trip to share:</div>
                   {userTrips.map((trip: any) => (
-                    <div 
-                      key={trip.id} 
+                    <div
+                      key={trip.id}
                       className="flex items-center justify-between p-3 rounded-lg border border-emerald-200 hover:bg-gradient-to-r hover:from-emerald-50 hover:to-cyan-50 cursor-pointer shadow-sm transition-all duration-200"
                       onClick={() => handleSendTrip(trip)}
                     >
@@ -1192,7 +1240,7 @@ const ChatView = () => {
                         <div>
                           <h4 className="font-bold text-gray-900">{trip.tripName || 'Unnamed Trip'}</h4>
                           <p className="text-sm text-gray-500">
-                            {trip.destination || 'Unknown destination'} • 
+                            {trip.destination || 'Unknown destination'} •
                             {trip.preferences?.startDate ? new Date(trip.preferences.startDate).toLocaleDateString() : 'Date not set'}
                           </p>
                         </div>
@@ -1224,30 +1272,30 @@ const ChatView = () => {
               <div className="mb-4">
                 <div className="bg-gradient-to-r from-gray-100 to-emerald-100 rounded-lg flex items-center px-3 py-2 border border-emerald-200 mb-4">
                   <Search className="w-4 h-4 text-gray-400 mr-2" />
-                  <input 
-                    type="text" 
-                    placeholder="Search contacts..." 
-                    className="bg-transparent outline-none text-sm w-full" 
+                  <input
+                    type="text"
+                    placeholder="Search contacts..."
+                    className="bg-transparent outline-none text-sm w-full"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                   />
                 </div>
-                
+
                 {/* Search Results */}
                 {searchQuery && (
                   <div className="mb-4">
                     <div className="text-sm text-gray-500 mb-2">Search Results</div>
                     <div className="space-y-2 max-h-60 overflow-y-auto">
                       {allUsers
-                        .filter(user => 
+                        .filter(user =>
                           user.uid !== currentUser?.uid && // Don't show current user
-                          (user.name?.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                           user.handle?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                           user.email?.toLowerCase().includes(searchQuery.toLowerCase()))
+                          (user.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                            user.handle?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                            user.email?.toLowerCase().includes(searchQuery.toLowerCase()))
                         )
                         .map((user) => (
-                          <div 
-                            key={user.uid} 
+                          <div
+                            key={user.uid}
                             className="flex items-center justify-between p-3 rounded-lg border border-emerald-200 hover:bg-gradient-to-r hover:from-emerald-50 hover:to-cyan-50 cursor-pointer shadow-sm transition-all duration-200"
                             onClick={async () => {
                               // Check if chat already exists
@@ -1272,10 +1320,10 @@ const ChatView = () => {
                             }}
                           >
                             <div className="flex items-center gap-3">
-                              <img 
-                                src={user.avatar || user.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent((user.name || user.displayName || 'U').substring(0, 2).toUpperCase())}&size=150&background=random&color=ffffff`} 
-                                className="w-10 h-10 rounded-full object-cover" 
-                                alt={user.name || user.displayName || 'User'} 
+                              <img
+                                src={user.avatar || user.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent((user.name || user.displayName || 'U').substring(0, 2).toUpperCase())}&size=150&background=random&color=ffffff`}
+                                className="w-10 h-10 rounded-full object-cover"
+                                alt={user.name || user.displayName || 'User'}
                                 onError={(e) => {
                                   const target = e.target as HTMLImageElement;
                                   target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent((user.name || user.displayName || 'U').substring(0, 2).toUpperCase())}&size=150&background=random&color=ffffff`;
@@ -1290,21 +1338,21 @@ const ChatView = () => {
                           </div>
                         ))
                       }
-                      {allUsers.filter(user => 
+                      {allUsers.filter(user =>
                         user.uid !== currentUser?.uid &&
-                        (user.name?.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                         user.handle?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         user.email?.toLowerCase().includes(searchQuery.toLowerCase()))
+                        (user.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          user.handle?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          user.email?.toLowerCase().includes(searchQuery.toLowerCase()))
                       ).length === 0 && (
-                        <div className="text-center py-4 text-gray-500 text-sm">
-                          No users found
-                        </div>
-                      )}
+                          <div className="text-center py-4 text-gray-500 text-sm">
+                            No users found
+                          </div>
+                        )}
                     </div>
                   </div>
                 )}
               </div>
-              
+
               <div className="text-sm text-gray-500 mb-2">Recent Contacts</div>
               <div className="space-y-2">
                 {searchQuery ? (
@@ -1317,8 +1365,8 @@ const ChatView = () => {
                     {recentContacts
                       .filter(user => user.uid !== currentUser?.uid) // Don't show current user
                       .map((user) => (
-                        <div 
-                          key={user.uid} 
+                        <div
+                          key={user.uid}
                           className="flex items-center justify-between p-3 rounded-lg border border-emerald-200 hover:bg-gradient-to-r hover:from-emerald-50 hover:to-cyan-50 cursor-pointer shadow-sm transition-all duration-200"
                           onClick={async () => {
                             // Check if chat already exists
@@ -1343,10 +1391,10 @@ const ChatView = () => {
                           }}
                         >
                           <div className="flex items-center gap-3">
-                            <img 
-                              src={user.avatar || user.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent((user.name || user.displayName || 'U').substring(0, 2).toUpperCase())}&size=150&background=random&color=ffffff`} 
-                              className="w-10 h-10 rounded-full object-cover" 
-                              alt={user.name || user.displayName || 'User'} 
+                            <img
+                              src={user.avatar || user.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent((user.name || user.displayName || 'U').substring(0, 2).toUpperCase())}&size=150&background=random&color=ffffff`}
+                              className="w-10 h-10 rounded-full object-cover"
+                              alt={user.name || user.displayName || 'User'}
                               onError={(e) => {
                                 const target = e.target as HTMLImageElement;
                                 target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent((user.name || user.displayName || 'U').substring(0, 2).toUpperCase())}&size=150&background=random&color=ffffff`;
@@ -1369,7 +1417,7 @@ const ChatView = () => {
                   </>
                 )}
               </div>
-              
+
               <div className="mt-6 text-sm text-gray-500 mb-2">Community Members</div>
               <div className="space-y-2">
                 {searchQuery ? (
@@ -1392,8 +1440,8 @@ const ChatView = () => {
                         return (a.name || '').localeCompare(b.name || '');
                       })
                       .map((member) => (
-                        <div 
-                          key={member.id || member.userId} 
+                        <div
+                          key={member.id || member.userId}
                           className="flex items-center justify-between p-3 rounded-lg border border-emerald-200 hover:bg-gradient-to-r hover:from-emerald-50 hover:to-cyan-50 cursor-pointer shadow-sm transition-all duration-200"
                           onClick={async () => {
                             // Check if chat already exists
@@ -1423,10 +1471,10 @@ const ChatView = () => {
                           }}
                         >
                           <div className="flex items-center gap-3">
-                            <img 
-                              src={member.avatar || member.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent((member.name || 'U').substring(0, 2).toUpperCase())}&size=150&background=random&color=ffffff`} 
-                              className="w-10 h-10 rounded-full object-cover" 
-                              alt={member.name || 'User'} 
+                            <img
+                              src={member.avatar || member.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent((member.name || 'U').substring(0, 2).toUpperCase())}&size=150&background=random&color=ffffff`}
+                              className="w-10 h-10 rounded-full object-cover"
+                              alt={member.name || 'User'}
                               onError={(e) => {
                                 const target = e.target as HTMLImageElement;
                                 target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent((member.name || 'U').substring(0, 2).toUpperCase())}&size=150&background=random&color=ffffff`;
@@ -1457,7 +1505,7 @@ const ChatView = () => {
           </div>
         </div>
       )}
-      
+
 
     </div>
   );

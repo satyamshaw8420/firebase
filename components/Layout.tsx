@@ -55,7 +55,7 @@ const Navbar: React.FC = () => {
           <div className="flex items-center gap-2">
             <Link to="/" className="flex items-center gap-y-2">
               <span>
-                <img src="/travelease logo.png" alt="TravelEase Logo" className="h-20 w-auto object-contain" /></span>
+                <img src="/travelease logo.png" alt="TravelEase Logo" className="h-24 w-auto object-contain" /></span>
               <span className="font-bold text-xl text-gray-900 tracking-tight transition-transform duration-200 hover:scale-105">TravelEase</span>
             
             </Link>

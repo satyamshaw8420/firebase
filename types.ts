@@ -81,7 +81,6 @@ export interface Expense {
   date: number; // timestamp
   category?: string;
   customCategory?: string; // For when category is "Other"
-  createdBy?: string; // userId of the person who added this expense
 }
 
 export interface SavedTrip extends Itinerary {
