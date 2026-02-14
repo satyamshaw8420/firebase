@@ -12,7 +12,7 @@ console.log("API Key found:", API_KEY ? "Yes" : "No");
 
 try {
   const genAI = new GoogleGenerativeAI(API_KEY);
-  const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
   
   console.log("Gemini AI initialized successfully!");
   console.log("Model:", model.model);

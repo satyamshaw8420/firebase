@@ -200,5 +200,22 @@ service cloud.firestore {
           request.auth.uid == resource.data.userId;
       }
     }
+
+    /* ================= TODOS ================= */
+    match /todos/{todoId} {
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+    }
+
+    /* ================= AI CHATS ================= */
+    match /ai_chats/{chatId} {
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+    }
+
+    match /ai_messages/{messageId} {
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+    }
   }
 }
