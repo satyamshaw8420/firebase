@@ -39,6 +39,12 @@ interface ChatMessage {
     createdAt: any;
 }
 
+interface UserDoc {
+    name?: string;
+    displayName?: string;
+    email?: string;
+}
+
 const AIChatOverlay: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, onClose }) => {
     const { currentUser } = useAuth();
     const dragControls = useDragControls();
@@ -89,7 +95,7 @@ const AIChatOverlay: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isO
         const fetchUserName = async () => {
             if (!currentUser) return;
             try {
-                const userDoc = await getDocument('users', currentUser.uid);
+                const userDoc = await getDocument<UserDoc>('users', currentUser.uid);
                 if (userDoc && userDoc.name) {
                     setUserName(userDoc.name);
                 } else {
@@ -110,10 +116,10 @@ const AIChatOverlay: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isO
     useEffect(() => {
         if (!currentUser) return;
 
-        const unsubscribe = subscribeToCollection(
+        const unsubscribe = subscribeToCollection<ChatSession>(
             'ai_chats',
             (docs) => {
-                const sorted = (docs as ChatSession[]).sort((a, b) => {
+                const sorted = docs.sort((a, b) => {
                     const aTime = a.createdAt?.seconds || 0;
                     const bTime = b.createdAt?.seconds || 0;
                     return bTime - aTime;
@@ -133,10 +139,10 @@ const AIChatOverlay: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isO
         }
 
         // FIX: Added userId to query to match security rules and avoid 403 error
-        const unsubscribe = subscribeToCollection(
+        const unsubscribe = subscribeToCollection<ChatMessage>(
             'ai_messages',
             (docs) => {
-                const sorted = (docs as ChatMessage[]).sort((a, b) => {
+                const sorted = docs.sort((a, b) => {
                     const aTime = a.createdAt?.seconds || 0;
                     const bTime = b.createdAt?.seconds || 0;
                     return aTime - bTime;
@@ -202,7 +208,7 @@ const AIChatOverlay: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isO
             history.push({ role: 'user', content: userMsg });
 
             const aiResponseRaw = await getGeminiResponse(history, userName || undefined);
-            
+
             // Post-processing: Strip any lingering markdown symbols (**, *) that the AI might include
             const aiResponse = aiResponseRaw.replace(/\*\*/g, '').replace(/\*/g, '');
 

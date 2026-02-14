@@ -1,11 +1,11 @@
 import { db } from './firebaseConfig';
-import { 
-  collection, 
-  doc, 
-  setDoc, 
-  getDoc, 
-  getDocs, 
-  updateDoc, 
+import {
+  collection,
+  doc,
+  setDoc,
+  getDoc,
+  getDocs,
+  updateDoc,
   deleteDoc,
   query,
   where,
@@ -31,13 +31,13 @@ export const addDocument = async (collectionName: string, data: any) => {
 };
 
 // Generic function to get a document by ID from a collection
-export const getDocument = async (collectionName: string, docId: string) => {
+export const getDocument = async <T = any>(collectionName: string, docId: string): Promise<(T & { id: string }) | null> => {
   try {
     const docRef = doc(db, collectionName, docId);
     const docSnap = await getDoc(docRef);
-    
+
     if (docSnap.exists()) {
-      const docData = docSnap.data() as DocumentData;
+      const docData = docSnap.data() as T;
       return { id: docSnap.id, ...docData };
     } else {
       console.log('No such document!');
@@ -50,12 +50,12 @@ export const getDocument = async (collectionName: string, docId: string) => {
 };
 
 // Generic function to get all documents from a collection
-export const getAllDocuments = async (collectionName: string) => {
+export const getAllDocuments = async <T = any>(collectionName: string): Promise<(T & { id: string })[]> => {
   try {
     const querySnapshot = await getDocs(collection(db, collectionName));
-    const documents: any[] = [];
+    const documents: (T & { id: string })[] = [];
     querySnapshot.forEach((doc) => {
-      const docData = doc.data() as DocumentData;
+      const docData = doc.data() as T;
       documents.push({ ...docData, id: doc.id });
     });
     return documents;
@@ -70,7 +70,7 @@ export const updateDocument = async (collectionName: string, docId: string, data
   try {
     const docRef = doc(db, collectionName, docId);
     // await updateDoc(docRef, data);
-await setDoc(docRef, data, { merge: true });
+    await setDoc(docRef, data, { merge: true });
 
     return docId;
   } catch (error) {
@@ -91,37 +91,37 @@ export const deleteDocument = async (collectionName: string, docId: string) => {
 };
 
 // Generic function to query documents with conditions
-export const queryDocuments = async (
+export const queryDocuments = async <T = any>(
   collectionName: string,
   conditions: { field: string; operator: any; value: any }[],
   orderByField?: string,
   limitCount?: number
-) => {
+): Promise<(T & { id: string })[]> => {
   try {
     let q: any = collection(db, collectionName);
-    
+
     // Apply conditions
     conditions.forEach(condition => {
       q = query(q, where(condition.field, condition.operator, condition.value));
     });
-    
+
     // Apply ordering if specified
     if (orderByField) {
       q = query(q, orderBy(orderByField));
     }
-    
+
     // Apply limit if specified
     if (limitCount) {
       q = query(q, limit(limitCount));
     }
-    
+
     const querySnapshot = await getDocs(q);
-    const documents: any[] = [];
+    const documents: (T & { id: string })[] = [];
     querySnapshot.forEach((doc) => {
-      const docData = doc.data() as DocumentData;
+      const docData = doc.data() as T;
       documents.push({ ...docData, id: doc.id });
     });
-    
+
     return documents;
   } catch (error) {
     console.error('Error querying documents:', error);
@@ -130,39 +130,39 @@ export const queryDocuments = async (
 };
 
 // Generic function to subscribe to real-time document updates
-export const subscribeToCollection = (
+export const subscribeToCollection = <T = any>(
   collectionName: string,
-  callback: (documents: any[]) => void,
+  callback: (documents: (T & { id: string })[]) => void,
   conditions?: { field: string; operator: any; value: any }[],
   orderByField?: string
 ) => {
   try {
     let q: any = collection(db, collectionName);
-    
+
     // Apply conditions if specified
     if (conditions) {
       conditions.forEach(condition => {
         q = query(q, where(condition.field, condition.operator, condition.value));
       });
     }
-    
+
     // Apply ordering if specified
     if (orderByField) {
       q = query(q, orderBy(orderByField));
     }
-    
+
     // Set up real-time listener
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
-      const documents: any[] = [];
+      const documents: (T & { id: string })[] = [];
       querySnapshot.forEach((doc) => {
-        const docData = doc.data() as DocumentData;
+        const docData = doc.data() as T;
         documents.push({ ...docData, id: doc.id });
       });
       callback(documents);
     }, (error) => {
       console.error('Error subscribing to collection:', error);
     });
-    
+
     return unsubscribe;
   } catch (error) {
     console.error('Error setting up subscription:', error);
@@ -190,17 +190,17 @@ export const createCommunity = async (communityData: any) => {
 export const joinCommunity = async (communityId: string, userId: string, userAuthData?: any) => {
   try {
     const memberRef = doc(collection(db, 'communities', communityId, 'members'), userId);
-    
+
     // Use a transaction to safely check and create membership
     const result = await runTransaction(db, async (transaction) => {
       const memberDoc = await getDoc(memberRef);
-      
+
       if (memberDoc.exists()) {
         // User is already a member
         console.log('User is already a member of this community');
         return userId;
       }
-      
+
       // Create the membership document
       transaction.set(memberRef, {
         userId,
@@ -208,10 +208,10 @@ export const joinCommunity = async (communityId: string, userId: string, userAut
         joinedAt: serverTimestamp(),
         status: 'active'
       });
-      
+
       return userId;
     });
-    
+
     // Update community member count atomically using a transaction
     try {
       const communityRef = doc(db, 'communities', communityId);
@@ -226,13 +226,13 @@ export const joinCommunity = async (communityId: string, userId: string, userAut
       console.error('Error updating member count (membership still created):', countError);
       // Don't throw this error as the main membership was created successfully
     }
-    
+
     // Ensure user profile exists in the users collection
     if (userAuthData) {
       try {
         const userRef = doc(db, 'users', userId);
         const userDoc = await getDoc(userRef);
-        
+
         if (!userDoc.exists()) {
           // Create user profile if it doesn't exist
           await setDoc(userRef, {
@@ -255,7 +255,7 @@ export const joinCommunity = async (communityId: string, userId: string, userAut
         // Don't throw this error as the main membership was created successfully
       }
     }
-    
+
     return result;
   } catch (error) {
     console.error('Error joining community:', error);
@@ -267,7 +267,7 @@ export const leaveCommunity = async (communityId: string, userId: string) => {
   try {
     // Remove the user from the community members first
     await deleteDoc(doc(collection(db, 'communities', communityId, 'members'), userId));
-    
+
     // Update community member count atomically using a transaction
     try {
       const communityRef = doc(db, 'communities', communityId);
@@ -282,7 +282,7 @@ export const leaveCommunity = async (communityId: string, userId: string) => {
       console.error('Error updating member count after leaving (membership still removed):', countError);
       // Don't throw this error as the main membership removal was successful
     }
-    
+
     return userId;
   } catch (error) {
     console.error('Error leaving community:', error);
@@ -350,11 +350,11 @@ export const subscribeToCommunityMembers = async (
           }
         })
       );
-      
+
       callback(membersWithUserData);
     }
   );
-  
+
   return unsubscribe;
 };
 
@@ -363,7 +363,7 @@ export const getCommunityById = async (communityId: string) => {
   try {
     const docRef = doc(db, 'communities', communityId);
     const docSnap = await getDoc(docRef);
-    
+
     if (docSnap.exists()) {
       const docData = docSnap.data() as DocumentData;
       return { id: docSnap.id, ...docData };
@@ -417,7 +417,7 @@ export const getCommunityMember = async (communityId: string, memberId: string) 
   try {
     const memberRef = doc(db, 'communities', communityId, 'members', memberId);
     const memberDoc = await getDoc(memberRef);
-    
+
     if (memberDoc.exists()) {
       const docData = memberDoc.data() as DocumentData;
       return { id: memberDoc.id, ...docData };
@@ -447,7 +447,7 @@ export const updateCommunityMember = async (communityId: string, memberId: strin
 export const removeCommunityMember = async (communityId: string, memberId: string) => {
   try {
     await deleteDoc(doc(db, 'communities', communityId, 'members', memberId));
-    
+
     // Update community member count atomically using a transaction
     const communityRef = doc(db, 'communities', communityId);
     await runTransaction(db, async (transaction) => {
@@ -457,7 +457,7 @@ export const removeCommunityMember = async (communityId: string, memberId: strin
         transaction.update(communityRef, { memberCount: Math.max(0, currentCount - 1) });
       }
     });
-    
+
     return memberId;
   } catch (error) {
     console.error('Error removing community member:', error);
@@ -510,7 +510,7 @@ export const createDirectMessageChat = async (user1Id: string, user2Id: string, 
     // Create a chat document
     const chatRef = doc(collection(db, 'chats'));
     const chatId = chatRef.id;
-    
+
     // Create chat data
     const chatData = {
       id: chatId,
@@ -535,10 +535,10 @@ export const createDirectMessageChat = async (user1Id: string, user2Id: string, 
       lastMessage: '',
       lastMessageTime: serverTimestamp()
     };
-    
+
     // Save the chat
     await setDoc(chatRef, chatData);
-    
+
     return chatId;
   } catch (error) {
     console.error('Error creating direct message chat:', error);
@@ -552,10 +552,10 @@ export const createCommunityGroupChat = async (communityId: string, groupName: s
     // Create a chat document
     const chatRef = doc(collection(db, 'chats'));
     const chatId = chatRef.id;
-    
+
     // Build participant data map
     const participantData = {};
-    
+
     // Add creator
     const creatorUid = creatorData.uid || creatorId;
     participantData[creatorUid] = {
@@ -564,7 +564,7 @@ export const createCommunityGroupChat = async (communityId: string, groupName: s
       handle: creatorData.handle || creatorData.email || creatorUid || 'user',
       uid: creatorUid
     };
-    
+
     // Add initial members
     initialMembers.forEach(member => {
       const memberId = member.uid || member.userId;
@@ -577,7 +577,7 @@ export const createCommunityGroupChat = async (communityId: string, groupName: s
         };
       }
     });
-    
+
     // Create chat data
     const chatData = {
       id: chatId,
@@ -593,10 +593,10 @@ export const createCommunityGroupChat = async (communityId: string, groupName: s
       lastMessageTime: serverTimestamp(),
       createdBy: creatorId
     };
-    
+
     // Save the chat
     await setDoc(chatRef, chatData);
-    
+
     return chatId;
   } catch (error) {
     console.error('Error creating community group chat:', error);
@@ -617,14 +617,14 @@ export const addDirectMessage = async (chatId: string, messageData: any) => {
       readAt: null
     };
     await setDoc(docRef, messageWithTimestamp);
-    
+
     // Update the chat's last message
     const chatRef = doc(db, 'chats', chatId);
     await updateDoc(chatRef, {
       lastMessage: messageData.text,
       lastMessageTime: serverTimestamp()
     });
-    
+
     return docRef.id;
   } catch (error) {
     console.error('Error adding direct message:', error);
@@ -640,20 +640,20 @@ export const getExistingChat = async (user1Id: string, user2Id: string) => {
       collection(db, 'chats'),
       where('participants', 'array-contains', user1Id)
     );
-    
+
     const querySnapshot1 = await getDocs(q1);
-    
+
     // Filter results to find chats that also contain user2
     const matchingChat = querySnapshot1.docs.find(doc => {
       const data = doc.data() as DocumentData;
       return data.participants && data.participants.includes(user2Id);
     });
-    
+
     if (matchingChat) {
       const chatData = matchingChat.data() as DocumentData;
       return { id: matchingChat.id, ...chatData };
     }
-    
+
     return null;
   } catch (error) {
     console.error('Error getting existing chat:', error);
@@ -738,26 +738,26 @@ export const addUserToGroupChat = async (chatId: string, userData: any) => {
   try {
     const chatRef = doc(db, 'chats', chatId);
     const chatSnap = await getDoc(chatRef);
-    
+
     if (!chatSnap.exists()) {
       throw new Error('Chat not found');
     }
-    
+
     const chatData = chatSnap.data() as DocumentData;
-    
+
     // Check if user is already in the group
     if (chatData.participants.includes(userData.uid)) {
       throw new Error('User is already in the group');
     }
-    
+
     // Check if group is at max capacity
     if (chatData.participants.length >= (chatData.maxMembers || 20)) {
       throw new Error('Group is at maximum capacity');
     }
-    
+
     // Add user to participants array
     const updatedParticipants = [...chatData.participants as unknown[], userData.uid];
-    
+
     // Add user to participantData
     const updatedParticipantData = {
       ...(chatData.participantData as DocumentData),
@@ -768,13 +768,13 @@ export const addUserToGroupChat = async (chatId: string, userData: any) => {
         uid: userData.uid
       }
     };
-    
+
     // Update the chat document
     await updateDoc(chatRef, {
       participants: updatedParticipants,
       participantData: updatedParticipantData
     });
-    
+
     return true;
   } catch (error) {
     console.error('Error adding user to group chat:', error);
@@ -787,31 +787,31 @@ export const removeUserFromGroupChat = async (chatId: string, userId: string) =>
   try {
     const chatRef = doc(db, 'chats', chatId);
     const chatSnap = await getDoc(chatRef);
-    
+
     if (!chatSnap.exists()) {
       throw new Error('Chat not found');
     }
-    
+
     const chatData = chatSnap.data() as DocumentData;
-    
+
     // Check if user is in the group
     if (!chatData.participants.includes(userId)) {
       throw new Error('User is not in the group');
     }
-    
+
     // Remove user from participants array
     const updatedParticipants = (chatData.participants as unknown[]).filter((id: string) => id !== userId);
-    
+
     // Remove user from participantData
     const updatedParticipantData = { ...(chatData.participantData as DocumentData) };
     delete updatedParticipantData[userId];
-    
+
     // Update the chat document
     await updateDoc(chatRef, {
       participants: updatedParticipants,
       participantData: updatedParticipantData
     });
-    
+
     return true;
   } catch (error) {
     console.error('Error removing user from group chat:', error);
